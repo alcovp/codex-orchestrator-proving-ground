@@ -1,3 +1,5 @@
+import * as THREE from "three";
+
 type Point = { x: number; y: number };
 type GameState = "idle" | "playing" | "paused" | "gameover";
 
@@ -7,7 +9,7 @@ const settings = {
   tile: 30,
   tickMs: 140,
   background: "#0b0f16",
-  grid: "rgba(255, 255, 255, 0.06)",
+  grid: "#d1d5db",
   snake: "#4ade80",
   snakeHead: "#22c55e",
   apple: "#f43f5e",
@@ -20,6 +22,14 @@ const canvas = (() => {
   }
   return element;
 })();
+const unit = settings.tile;
+const boardWidth = settings.columns * unit;
+const boardHeight = settings.rows * unit;
+const boardOffset = new THREE.Vector3(
+  -boardWidth / 2 + unit / 2,
+  0,
+  -boardHeight / 2 + unit / 2,
+);
 const statusLabel = (() => {
   const element = document.getElementById("status-label");
   if (!(element instanceof HTMLElement)) {
@@ -70,16 +80,60 @@ const menuAction = (() => {
   return element;
 })();
 
-const context = (() => {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Canvas 2D контекст недоступен");
-  }
-  return ctx;
-})();
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(settings.background, 1);
+renderer.setSize(boardWidth, boardHeight, false);
 
-canvas.width = settings.columns * settings.tile;
-canvas.height = settings.rows * settings.tile;
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000);
+const cameraHeight = Math.max(boardWidth, boardHeight) * 0.9;
+camera.position.set(boardWidth * 0.35, cameraHeight, boardHeight * 0.9);
+camera.lookAt(0, 0, 0);
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+keyLight.position.set(boardWidth, boardHeight * 1.4, boardHeight);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+fillLight.position.set(-boardWidth * 0.6, boardHeight, -boardHeight * 0.5);
+scene.add(fillLight);
+
+const floorMaterial = new THREE.MeshStandardMaterial({
+  color: "#0f172a",
+  roughness: 0.9,
+  metalness: 0.02,
+});
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(boardWidth + unit, boardHeight + unit),
+  floorMaterial,
+);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+scene.add(createGrid());
+
+const snakeGeometry = new THREE.BoxGeometry(unit * 0.9, unit * 0.9, unit * 0.9);
+const snakeMaterial = new THREE.MeshStandardMaterial({
+  color: new THREE.Color(settings.snake),
+});
+const snakeHeadMaterial = new THREE.MeshStandardMaterial({
+  color: new THREE.Color(settings.snakeHead),
+});
+
+const appleGeometry = new THREE.BoxGeometry(unit * 0.8, unit * 0.8, unit * 0.8);
+const appleMaterial = new THREE.MeshStandardMaterial({
+  color: new THREE.Color(settings.apple),
+  emissive: new THREE.Color(settings.apple),
+  emissiveIntensity: 0.22,
+});
+
+const snakeMeshes: THREE.Mesh[] = [];
+const appleMesh = new THREE.Mesh(appleGeometry, appleMaterial);
+scene.add(appleMesh);
 
 const stateLabelByState: Record<GameState, string> = {
   idle: "Ожидание",
@@ -127,6 +181,75 @@ function hideMenu(): void {
   menu.classList.add("hidden");
 }
 
+function createGrid(): THREE.LineSegments {
+  const positions: number[] = [];
+  for (let col = 0; col <= settings.columns; col += 1) {
+    const x = -boardWidth / 2 + col * unit;
+    positions.push(x, 0.01, -boardHeight / 2, x, 0.01, boardHeight / 2);
+  }
+  for (let row = 0; row <= settings.rows; row += 1) {
+    const z = -boardHeight / 2 + row * unit;
+    positions.push(-boardWidth / 2, 0.01, z, boardWidth / 2, 0.01, z);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({
+    color: new THREE.Color(settings.grid),
+    transparent: true,
+    opacity: 0.18,
+  });
+  return new THREE.LineSegments(geometry, material);
+}
+
+function cellToWorld(point: Point): THREE.Vector3 {
+  return new THREE.Vector3(
+    boardOffset.x + point.x * unit,
+    unit * 0.45,
+    boardOffset.z + point.y * unit,
+  );
+}
+
+function ensureSnakeMeshes(): void {
+  while (snakeMeshes.length < snake.length) {
+    const mesh = new THREE.Mesh(snakeGeometry, snakeMaterial);
+    scene.add(mesh);
+    snakeMeshes.push(mesh);
+  }
+  while (snakeMeshes.length > snake.length) {
+    const mesh = snakeMeshes.pop();
+    if (mesh) {
+      scene.remove(mesh);
+    }
+  }
+  snake.forEach((segment, index) => {
+    const mesh = snakeMeshes[index];
+    if (!mesh) return;
+    mesh.material = index === 0 ? snakeHeadMaterial : snakeMaterial;
+    const world = cellToWorld(segment);
+    mesh.position.set(world.x, world.y, world.z);
+  });
+}
+
+function updateAppleMesh(): void {
+  const world = cellToWorld(apple);
+  appleMesh.position.set(world.x, world.y, world.z);
+}
+
+function renderScene(): void {
+  ensureSnakeMeshes();
+  updateAppleMesh();
+  renderer.render(scene, camera);
+}
+
+function handleResize(): void {
+  const width = canvas.clientWidth || boardWidth;
+  const height = (width * boardHeight) / boardWidth;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderScene();
+}
+
 function resetGame(): void {
   const startX = Math.floor(settings.columns / 2);
   const startY = Math.floor(settings.rows / 2);
@@ -138,6 +261,7 @@ function resetGame(): void {
     { x: startX - 2, y: startY },
   ];
   apple = spawnApple();
+  renderScene();
 }
 
 function spawnApple(): Point {
@@ -172,47 +296,6 @@ function isOutOfBounds(point: Point): boolean {
   );
 }
 
-function drawBackground(): void {
-  context.fillStyle = settings.background;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.strokeStyle = settings.grid;
-  context.lineWidth = 1;
-
-  // Небольшая сетка помогает оценивать позицию.
-  for (let x = 0; x <= settings.columns; x += 1) {
-    const pos = x * settings.tile + 0.5;
-    context.beginPath();
-    context.moveTo(pos, 0);
-    context.lineTo(pos, canvas.height);
-    context.stroke();
-  }
-  for (let y = 0; y <= settings.rows; y += 1) {
-    const pos = y * settings.tile + 0.5;
-    context.beginPath();
-    context.moveTo(0, pos);
-    context.lineTo(canvas.width, pos);
-    context.stroke();
-  }
-}
-
-function drawCell(point: Point, color: string): void {
-  context.fillStyle = color;
-  context.fillRect(
-    point.x * settings.tile + 1,
-    point.y * settings.tile + 1,
-    settings.tile - 2,
-    settings.tile - 2,
-  );
-}
-
-function draw(): void {
-  drawBackground();
-  snake.forEach((segment, index) => {
-    drawCell(segment, index === 0 ? settings.snakeHead : settings.snake);
-  });
-  drawCell(apple, settings.apple);
-}
-
 function step(): void {
   if (gameState !== "playing") {
     return;
@@ -228,7 +311,7 @@ function step(): void {
   if (isOutOfBounds(newHead) || isOnSnake(newHead)) {
     setGameState("gameover");
     showGameOverMenu();
-    draw();
+    renderScene();
     return;
   }
 
@@ -242,7 +325,7 @@ function step(): void {
     apple = spawnApple();
   }
 
-  draw();
+  renderScene();
 }
 
 function tryChangeDirection(requested: Point): void {
@@ -261,6 +344,7 @@ const directionsByKey: Record<string, Point> = {
   ArrowRight: { x: 1, y: 0 },
 };
 
+window.addEventListener("resize", handleResize);
 window.addEventListener("keydown", (event) => {
   if (event.key === " " || event.key === "Spacebar") {
     event.preventDefault();
@@ -290,7 +374,7 @@ menuAction.addEventListener("click", () => {
   updateScoreDisplay();
   hideMenu();
   setGameState("playing");
-  draw();
+  renderScene();
 });
 
 pauseButton.addEventListener("click", () => {
@@ -302,8 +386,8 @@ pauseButton.addEventListener("click", () => {
 });
 
 resetGame();
-draw();
 updateScoreDisplay();
 setGameState("idle");
 showStartMenu();
+handleResize();
 window.setInterval(step, settings.tickMs);
