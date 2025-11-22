@@ -1,0 +1,404 @@
+0 verbose cli /home/alcovp/.nvm/versions/node/v22.16.0/bin/node /home/alcovp/.nvm/versions/node/v22.16.0/bin/npm
+1 info using npm@10.9.2
+2 info using node@v22.16.0
+3 silly config load:file:/home/alcovp/.nvm/versions/node/v22.16.0/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/.npmrc
+5 silly config load:file:/home/alcovp/.npmrc
+6 silly config load:file:/home/alcovp/.nvm/versions/node/v22.16.0/etc/npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" ".npm-cache"
+9 verbose logfile logs-max:10 dir:/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/.npm-cache/_logs/2025-11-22T16_25_44_667Z-
+10 verbose logfile /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/.npm-cache/_logs/2025-11-22T16_25_44_667Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 silly idealTree buildDeps
+14 silly fetch manifest cannon-es@^0.20.0
+15 silly packumentCache full:https://registry.npmjs.org/cannon-es cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/cannon-es 440ms (cache miss)
+17 silly packumentCache full:https://registry.npmjs.org/cannon-es set size:undefined disposed:false
+18 silly fetch manifest three@^0.171.0
+19 silly packumentCache full:https://registry.npmjs.org/three cache-miss
+20 http fetch GET 200 https://registry.npmjs.org/npm 717ms
+21 http fetch GET 200 https://registry.npmjs.org/three 442ms (cache miss)
+22 silly packumentCache full:https://registry.npmjs.org/three set size:undefined disposed:false
+23 silly placeDep ROOT cannon-es@0.20.0 OK for: main@1.0.0 want: ^0.20.0
+24 silly placeDep ROOT three@0.171.0 OK for: main@1.0.0 want: ^0.171.0
+25 silly reify moves {}
+26 silly audit bulk request {
+26 silly audit   '@esbuild/aix-ppc64': [ '0.25.12' ],
+26 silly audit   '@esbuild/android-arm': [ '0.25.12' ],
+26 silly audit   '@esbuild/android-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/android-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/darwin-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/darwin-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/freebsd-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/freebsd-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-arm': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-ia32': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-loong64': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-mips64el': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-ppc64': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-riscv64': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-s390x': [ '0.25.12' ],
+26 silly audit   '@esbuild/linux-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/netbsd-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/netbsd-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/openbsd-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/openbsd-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/openharmony-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/sunos-x64': [ '0.25.12' ],
+26 silly audit   '@esbuild/win32-arm64': [ '0.25.12' ],
+26 silly audit   '@esbuild/win32-ia32': [ '0.25.12' ],
+26 silly audit   '@esbuild/win32-x64': [ '0.25.12' ],
+26 silly audit   '@rollup/rollup-android-arm-eabi': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-android-arm64': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-darwin-arm64': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-darwin-x64': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-freebsd-arm64': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-freebsd-x64': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-arm-gnueabihf': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-arm-musleabihf': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-arm64-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-arm64-musl': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-loong64-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-ppc64-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-riscv64-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-riscv64-musl': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-s390x-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-x64-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-linux-x64-musl': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-openharmony-arm64': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-win32-arm64-msvc': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-win32-ia32-msvc': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-win32-x64-gnu': [ '4.53.3' ],
+26 silly audit   '@rollup/rollup-win32-x64-msvc': [ '4.53.3' ],
+26 silly audit   '@types/estree': [ '1.0.8' ],
+26 silly audit   esbuild: [ '0.25.12' ],
+26 silly audit   fdir: [ '6.5.0' ],
+26 silly audit   fsevents: [ '2.3.3' ],
+26 silly audit   nanoid: [ '3.3.11' ],
+26 silly audit   picocolors: [ '1.1.1' ],
+26 silly audit   picomatch: [ '4.0.3' ],
+26 silly audit   postcss: [ '8.5.6' ],
+26 silly audit   rollup: [ '4.53.3' ],
+26 silly audit   'source-map-js': [ '1.2.1' ],
+26 silly audit   tinyglobby: [ '0.2.15' ],
+26 silly audit   typescript: [ '5.9.3' ],
+26 silly audit   vite: [ '7.2.4' ],
+26 silly audit   'cannon-es': [ '0.20.0' ],
+26 silly audit   three: [ '0.171.0' ]
+26 silly audit }
+27 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/fsevents
+28 silly reify mark deleted [
+28 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/fsevents'
+28 silly reify ]
+29 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-x64-msvc
+30 silly reify mark deleted [
+30 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-x64-msvc'
+30 silly reify ]
+31 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-x64-gnu
+32 silly reify mark deleted [
+32 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-x64-gnu'
+32 silly reify ]
+33 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-ia32-msvc
+34 silly reify mark deleted [
+34 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-ia32-msvc'
+34 silly reify ]
+35 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-arm64-msvc
+36 silly reify mark deleted [
+36 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-win32-arm64-msvc'
+36 silly reify ]
+37 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-openharmony-arm64
+38 silly reify mark deleted [
+38 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-openharmony-arm64'
+38 silly reify ]
+39 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-s390x-gnu
+40 silly reify mark deleted [
+40 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-s390x-gnu'
+40 silly reify ]
+41 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-riscv64-musl
+42 silly reify mark deleted [
+42 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-riscv64-musl'
+42 silly reify ]
+43 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-riscv64-gnu
+44 silly reify mark deleted [
+44 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-riscv64-gnu'
+44 silly reify ]
+45 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-ppc64-gnu
+46 silly reify mark deleted [
+46 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-ppc64-gnu'
+46 silly reify ]
+47 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-loong64-gnu
+48 silly reify mark deleted [
+48 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-loong64-gnu'
+48 silly reify ]
+49 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm64-musl
+50 silly reify mark deleted [
+50 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm64-musl'
+50 silly reify ]
+51 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm64-gnu
+52 silly reify mark deleted [
+52 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm64-gnu'
+52 silly reify ]
+53 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm-musleabihf
+54 silly reify mark deleted [
+54 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm-musleabihf'
+54 silly reify ]
+55 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm-gnueabihf
+56 silly reify mark deleted [
+56 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-linux-arm-gnueabihf'
+56 silly reify ]
+57 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-freebsd-x64
+58 silly reify mark deleted [
+58 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-freebsd-x64'
+58 silly reify ]
+59 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-freebsd-arm64
+60 silly reify mark deleted [
+60 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-freebsd-arm64'
+60 silly reify ]
+61 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-darwin-x64
+62 silly reify mark deleted [
+62 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-darwin-x64'
+62 silly reify ]
+63 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-darwin-arm64
+64 silly reify mark deleted [
+64 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-darwin-arm64'
+64 silly reify ]
+65 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-android-arm64
+66 silly reify mark deleted [
+66 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-android-arm64'
+66 silly reify ]
+67 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-android-arm-eabi
+68 silly reify mark deleted [
+68 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@rollup/rollup-android-arm-eabi'
+68 silly reify ]
+69 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/win32-x64
+70 silly reify mark deleted [
+70 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/win32-x64'
+70 silly reify ]
+71 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/win32-ia32
+72 silly reify mark deleted [
+72 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/win32-ia32'
+72 silly reify ]
+73 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/win32-arm64
+74 silly reify mark deleted [
+74 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/win32-arm64'
+74 silly reify ]
+75 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/sunos-x64
+76 silly reify mark deleted [
+76 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/sunos-x64'
+76 silly reify ]
+77 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/openharmony-arm64
+78 silly reify mark deleted [
+78 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/openharmony-arm64'
+78 silly reify ]
+79 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/openbsd-x64
+80 silly reify mark deleted [
+80 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/openbsd-x64'
+80 silly reify ]
+81 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/openbsd-arm64
+82 silly reify mark deleted [
+82 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/openbsd-arm64'
+82 silly reify ]
+83 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/netbsd-x64
+84 silly reify mark deleted [
+84 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/netbsd-x64'
+84 silly reify ]
+85 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/netbsd-arm64
+86 silly reify mark deleted [
+86 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/netbsd-arm64'
+86 silly reify ]
+87 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-s390x
+88 silly reify mark deleted [
+88 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-s390x'
+88 silly reify ]
+89 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-riscv64
+90 silly reify mark deleted [
+90 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-riscv64'
+90 silly reify ]
+91 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-ppc64
+92 silly reify mark deleted [
+92 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-ppc64'
+92 silly reify ]
+93 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-mips64el
+94 silly reify mark deleted [
+94 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-mips64el'
+94 silly reify ]
+95 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-loong64
+96 silly reify mark deleted [
+96 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-loong64'
+96 silly reify ]
+97 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-ia32
+98 silly reify mark deleted [
+98 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-ia32'
+98 silly reify ]
+99 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-arm64
+100 silly reify mark deleted [
+100 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-arm64'
+100 silly reify ]
+101 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-arm
+102 silly reify mark deleted [
+102 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/linux-arm'
+102 silly reify ]
+103 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/freebsd-x64
+104 silly reify mark deleted [
+104 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/freebsd-x64'
+104 silly reify ]
+105 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/freebsd-arm64
+106 silly reify mark deleted [
+106 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/freebsd-arm64'
+106 silly reify ]
+107 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/darwin-x64
+108 silly reify mark deleted [
+108 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/darwin-x64'
+108 silly reify ]
+109 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/darwin-arm64
+110 silly reify mark deleted [
+110 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/darwin-arm64'
+110 silly reify ]
+111 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/android-x64
+112 silly reify mark deleted [
+112 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/android-x64'
+112 silly reify ]
+113 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/android-arm64
+114 silly reify mark deleted [
+114 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/android-arm64'
+114 silly reify ]
+115 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/android-arm
+116 silly reify mark deleted [
+116 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/android-arm'
+116 silly reify ]
+117 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/aix-ppc64
+118 silly reify mark deleted [
+118 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics/node_modules/@esbuild/aix-ppc64'
+118 silly reify ]
+119 http cache vite@https://registry.npmjs.org/vite/-/vite-7.2.4.tgz 0ms (cache hit)
+120 http cache cannon-es@https://registry.npmjs.org/cannon-es/-/cannon-es-0.20.0.tgz 0ms (cache hit)
+121 http cache three@https://registry.npmjs.org/three/-/three-0.171.0.tgz 0ms (cache hit)
+122 http cache typescript@https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz 0ms (cache hit)
+123 http cache source-map-js@https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz 0ms (cache hit)
+124 http cache rollup@https://registry.npmjs.org/rollup/-/rollup-4.53.3.tgz 0ms (cache hit)
+125 http cache tinyglobby@https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.15.tgz 0ms (cache hit)
+126 http cache picocolors@https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz 0ms (cache hit)
+127 http cache postcss@https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz 0ms (cache hit)
+128 http cache nanoid@https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz 0ms (cache hit)
+129 http cache fdir@https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz 0ms (cache hit)
+130 http cache esbuild@https://registry.npmjs.org/esbuild/-/esbuild-0.25.12.tgz 0ms (cache hit)
+131 http cache picomatch@https://registry.npmjs.org/picomatch/-/picomatch-4.0.3.tgz 0ms (cache hit)
+132 http cache @rollup/rollup-linux-x64-musl@https://registry.npmjs.org/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.53.3.tgz 0ms (cache hit)
+133 http cache @types/estree@https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz 0ms (cache hit)
+134 http cache @rollup/rollup-linux-x64-gnu@https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.53.3.tgz 0ms (cache hit)
+135 http cache @esbuild/linux-x64@https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.25.12.tgz 0ms (cache hit)
+136 silly tarball no local data for vite@https://registry.npmjs.org/vite/-/vite-7.2.4.tgz. Extracting by manifest.
+137 silly tarball no local data for cannon-es@https://registry.npmjs.org/cannon-es/-/cannon-es-0.20.0.tgz. Extracting by manifest.
+138 silly tarball no local data for three@https://registry.npmjs.org/three/-/three-0.171.0.tgz. Extracting by manifest.
+139 silly tarball no local data for typescript@https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz. Extracting by manifest.
+140 silly tarball no local data for source-map-js@https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz. Extracting by manifest.
+141 silly tarball no local data for rollup@https://registry.npmjs.org/rollup/-/rollup-4.53.3.tgz. Extracting by manifest.
+142 silly tarball no local data for tinyglobby@https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.15.tgz. Extracting by manifest.
+143 silly tarball no local data for picocolors@https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz. Extracting by manifest.
+144 silly tarball no local data for postcss@https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz. Extracting by manifest.
+145 silly tarball no local data for nanoid@https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz. Extracting by manifest.
+146 silly tarball no local data for fdir@https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz. Extracting by manifest.
+147 silly tarball no local data for esbuild@https://registry.npmjs.org/esbuild/-/esbuild-0.25.12.tgz. Extracting by manifest.
+148 silly tarball no local data for picomatch@https://registry.npmjs.org/picomatch/-/picomatch-4.0.3.tgz. Extracting by manifest.
+149 silly tarball no local data for @rollup/rollup-linux-x64-musl@https://registry.npmjs.org/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.53.3.tgz. Extracting by manifest.
+150 silly tarball no local data for @types/estree@https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz. Extracting by manifest.
+151 silly tarball no local data for @rollup/rollup-linux-x64-gnu@https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.53.3.tgz. Extracting by manifest.
+152 silly tarball no local data for @esbuild/linux-x64@https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.25.12.tgz. Extracting by manifest.
+153 http fetch GET 200 https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz 463ms (cache miss)
+154 http fetch GET 200 https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz 492ms (cache miss)
+155 http fetch GET 200 https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.15.tgz 514ms (cache miss)
+156 http fetch GET 200 https://registry.npmjs.org/picomatch/-/picomatch-4.0.3.tgz 513ms (cache miss)
+157 http fetch GET 200 https://registry.npmjs.org/vite/-/vite-7.2.4.tgz 554ms (cache miss)
+158 http fetch GET 200 https://registry.npmjs.org/esbuild/-/esbuild-0.25.12.tgz 552ms (cache miss)
+159 http fetch GET 200 https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz 552ms (cache miss)
+160 http fetch GET 200 https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz 558ms (cache miss)
+161 http fetch GET 200 https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz 560ms (cache miss)
+162 http fetch GET 200 https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz 577ms (cache miss)
+163 http fetch GET 200 https://registry.npmjs.org/cannon-es/-/cannon-es-0.20.0.tgz 619ms (cache miss)
+164 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 673ms
+165 silly audit report {}
+166 http fetch GET 200 https://registry.npmjs.org/rollup/-/rollup-4.53.3.tgz 1323ms (cache miss)
+167 http fetch GET 200 https://registry.npmjs.org/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.53.3.tgz 1476ms (cache miss)
+168 http fetch GET 200 https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.53.3.tgz 1860ms (cache miss)
+169 http fetch GET 200 https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz 3327ms (cache miss)
+170 http fetch GET 200 https://registry.npmjs.org/three/-/three-0.171.0.tgz 3853ms (cache miss)
+171 http fetch GET 200 https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.25.12.tgz 4010ms (cache miss)
+172 info run esbuild@0.25.12 postinstall node_modules/esbuild node install.js
+173 info run esbuild@0.25.12 postinstall { code: 0, signal: null }
+174 silly ADD node_modules/three
+175 silly ADD node_modules/cannon-es
+176 silly ADD node_modules/vite
+177 silly ADD node_modules/typescript
+178 silly ADD node_modules/tinyglobby
+179 silly ADD node_modules/source-map-js
+180 silly ADD node_modules/rollup
+181 silly ADD node_modules/postcss
+182 silly ADD node_modules/picomatch
+183 silly ADD node_modules/picocolors
+184 silly ADD node_modules/nanoid
+185 silly ADD
+186 silly ADD node_modules/fdir
+187 silly ADD node_modules/esbuild
+188 silly ADD node_modules/@types/estree
+189 silly ADD
+190 silly ADD
+191 silly ADD
+192 silly ADD
+193 silly ADD
+194 silly ADD node_modules/@rollup/rollup-linux-x64-musl
+195 silly ADD node_modules/@rollup/rollup-linux-x64-gnu
+196 silly ADD
+197 silly ADD
+198 silly ADD
+199 silly ADD
+200 silly ADD
+201 silly ADD
+202 silly ADD
+203 silly ADD
+204 silly ADD
+205 silly ADD
+206 silly ADD
+207 silly ADD
+208 silly ADD
+209 silly ADD
+210 silly ADD
+211 silly ADD
+212 silly ADD
+213 silly ADD
+214 silly ADD
+215 silly ADD
+216 silly ADD
+217 silly ADD
+218 silly ADD
+219 silly ADD
+220 silly ADD node_modules/@esbuild/linux-x64
+221 silly ADD
+222 silly ADD
+223 silly ADD
+224 silly ADD
+225 silly ADD
+226 silly ADD
+227 silly ADD
+228 silly ADD
+229 silly ADD
+230 silly ADD
+231 silly ADD
+232 silly ADD
+233 silly ADD
+234 silly ADD
+235 silly ADD
+236 silly ADD
+237 verbose cwd /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/task-cannon-physics
+238 verbose os Linux 6.8.0-87-generic
+239 verbose node v22.16.0
+240 verbose npm  v10.9.2
+241 notice
+241 notice New major version of npm available! 10.9.2 -> 11.6.3
+241 notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.3
+241 notice To update run: npm install -g npm@11.6.3
+241 notice  { force: true, [Symbol(proc-log.meta)]: true }
+242 verbose exit 0
+243 info ok
