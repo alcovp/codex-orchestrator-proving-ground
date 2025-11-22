@@ -1,0 +1,380 @@
+0 verbose cli /home/alcovp/.nvm/versions/node/v22.16.0/bin/node /home/alcovp/.nvm/versions/node/v22.16.0/bin/npm
+1 info using npm@10.9.2
+2 info using node@v22.16.0
+3 silly config load:file:/home/alcovp/.nvm/versions/node/v22.16.0/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/.npmrc
+5 silly config load:file:/home/alcovp/.npmrc
+6 silly config load:file:/home/alcovp/.nvm/versions/node/v22.16.0/etc/npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" ".npm-cache"
+9 verbose logfile logs-max:10 dir:/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/.npm-cache/_logs/2025-11-22T16_39_33_184Z-
+10 verbose logfile /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/.npm-cache/_logs/2025-11-22T16_39_33_184Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 silly idealTree buildDeps
+14 silly reify moves {}
+15 silly audit bulk request {
+15 silly audit   '@dimforge/rapier3d-compat': [ '0.12.0' ],
+15 silly audit   '@esbuild/aix-ppc64': [ '0.25.12' ],
+15 silly audit   '@esbuild/android-arm': [ '0.25.12' ],
+15 silly audit   '@esbuild/android-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/android-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/darwin-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/darwin-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/freebsd-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/freebsd-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-arm': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-ia32': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-loong64': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-mips64el': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-ppc64': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-riscv64': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-s390x': [ '0.25.12' ],
+15 silly audit   '@esbuild/linux-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/netbsd-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/netbsd-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/openbsd-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/openbsd-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/openharmony-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/sunos-x64': [ '0.25.12' ],
+15 silly audit   '@esbuild/win32-arm64': [ '0.25.12' ],
+15 silly audit   '@esbuild/win32-ia32': [ '0.25.12' ],
+15 silly audit   '@esbuild/win32-x64': [ '0.25.12' ],
+15 silly audit   '@rollup/rollup-android-arm-eabi': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-android-arm64': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-darwin-arm64': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-darwin-x64': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-freebsd-arm64': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-freebsd-x64': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-arm-gnueabihf': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-arm-musleabihf': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-arm64-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-arm64-musl': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-loong64-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-ppc64-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-riscv64-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-riscv64-musl': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-s390x-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-x64-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-linux-x64-musl': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-openharmony-arm64': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-win32-arm64-msvc': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-win32-ia32-msvc': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-win32-x64-gnu': [ '4.53.3' ],
+15 silly audit   '@rollup/rollup-win32-x64-msvc': [ '4.53.3' ],
+15 silly audit   '@tweenjs/tween.js': [ '23.1.3' ],
+15 silly audit   '@types/estree': [ '1.0.8' ],
+15 silly audit   '@types/stats.js': [ '0.17.4' ],
+15 silly audit   '@types/three': [ '0.181.0' ],
+15 silly audit   '@types/webxr': [ '0.5.24' ],
+15 silly audit   '@webgpu/types': [ '0.1.66' ],
+15 silly audit   'cannon-es': [ '0.20.0' ],
+15 silly audit   esbuild: [ '0.25.12' ],
+15 silly audit   fdir: [ '6.5.0' ],
+15 silly audit   fflate: [ '0.8.2' ],
+15 silly audit   fsevents: [ '2.3.3' ],
+15 silly audit   meshoptimizer: [ '0.22.0' ],
+15 silly audit   nanoid: [ '3.3.11' ],
+15 silly audit   picocolors: [ '1.1.1' ],
+15 silly audit   picomatch: [ '4.0.3' ],
+15 silly audit   postcss: [ '8.5.6' ],
+15 silly audit   rollup: [ '4.53.3' ],
+15 silly audit   'source-map-js': [ '1.2.1' ],
+15 silly audit   three: [ '0.181.2' ],
+15 silly audit   tinyglobby: [ '0.2.15' ],
+15 silly audit   typescript: [ '5.9.3' ],
+15 silly audit   vite: [ '7.2.4' ]
+15 silly audit }
+16 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/fsevents
+17 silly reify mark deleted [
+17 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/fsevents'
+17 silly reify ]
+18 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-x64-msvc
+19 silly reify mark deleted [
+19 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-x64-msvc'
+19 silly reify ]
+20 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-x64-gnu
+21 silly reify mark deleted [
+21 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-x64-gnu'
+21 silly reify ]
+22 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-ia32-msvc
+23 silly reify mark deleted [
+23 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-ia32-msvc'
+23 silly reify ]
+24 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-arm64-msvc
+25 silly reify mark deleted [
+25 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-win32-arm64-msvc'
+25 silly reify ]
+26 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-openharmony-arm64
+27 silly reify mark deleted [
+27 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-openharmony-arm64'
+27 silly reify ]
+28 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-s390x-gnu
+29 silly reify mark deleted [
+29 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-s390x-gnu'
+29 silly reify ]
+30 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-riscv64-musl
+31 silly reify mark deleted [
+31 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-riscv64-musl'
+31 silly reify ]
+32 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-riscv64-gnu
+33 silly reify mark deleted [
+33 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-riscv64-gnu'
+33 silly reify ]
+34 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-ppc64-gnu
+35 silly reify mark deleted [
+35 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-ppc64-gnu'
+35 silly reify ]
+36 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-loong64-gnu
+37 silly reify mark deleted [
+37 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-loong64-gnu'
+37 silly reify ]
+38 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm64-musl
+39 silly reify mark deleted [
+39 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm64-musl'
+39 silly reify ]
+40 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm64-gnu
+41 silly reify mark deleted [
+41 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm64-gnu'
+41 silly reify ]
+42 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm-musleabihf
+43 silly reify mark deleted [
+43 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm-musleabihf'
+43 silly reify ]
+44 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm-gnueabihf
+45 silly reify mark deleted [
+45 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-linux-arm-gnueabihf'
+45 silly reify ]
+46 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-freebsd-x64
+47 silly reify mark deleted [
+47 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-freebsd-x64'
+47 silly reify ]
+48 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-freebsd-arm64
+49 silly reify mark deleted [
+49 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-freebsd-arm64'
+49 silly reify ]
+50 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-darwin-x64
+51 silly reify mark deleted [
+51 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-darwin-x64'
+51 silly reify ]
+52 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-darwin-arm64
+53 silly reify mark deleted [
+53 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-darwin-arm64'
+53 silly reify ]
+54 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-android-arm64
+55 silly reify mark deleted [
+55 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-android-arm64'
+55 silly reify ]
+56 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-android-arm-eabi
+57 silly reify mark deleted [
+57 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@rollup/rollup-android-arm-eabi'
+57 silly reify ]
+58 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/win32-x64
+59 silly reify mark deleted [
+59 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/win32-x64'
+59 silly reify ]
+60 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/win32-ia32
+61 silly reify mark deleted [
+61 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/win32-ia32'
+61 silly reify ]
+62 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/win32-arm64
+63 silly reify mark deleted [
+63 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/win32-arm64'
+63 silly reify ]
+64 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/sunos-x64
+65 silly reify mark deleted [
+65 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/sunos-x64'
+65 silly reify ]
+66 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/openharmony-arm64
+67 silly reify mark deleted [
+67 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/openharmony-arm64'
+67 silly reify ]
+68 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/openbsd-x64
+69 silly reify mark deleted [
+69 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/openbsd-x64'
+69 silly reify ]
+70 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/openbsd-arm64
+71 silly reify mark deleted [
+71 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/openbsd-arm64'
+71 silly reify ]
+72 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/netbsd-x64
+73 silly reify mark deleted [
+73 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/netbsd-x64'
+73 silly reify ]
+74 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/netbsd-arm64
+75 silly reify mark deleted [
+75 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/netbsd-arm64'
+75 silly reify ]
+76 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-s390x
+77 silly reify mark deleted [
+77 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-s390x'
+77 silly reify ]
+78 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-riscv64
+79 silly reify mark deleted [
+79 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-riscv64'
+79 silly reify ]
+80 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-ppc64
+81 silly reify mark deleted [
+81 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-ppc64'
+81 silly reify ]
+82 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-mips64el
+83 silly reify mark deleted [
+83 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-mips64el'
+83 silly reify ]
+84 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-loong64
+85 silly reify mark deleted [
+85 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-loong64'
+85 silly reify ]
+86 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-ia32
+87 silly reify mark deleted [
+87 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-ia32'
+87 silly reify ]
+88 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-arm64
+89 silly reify mark deleted [
+89 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-arm64'
+89 silly reify ]
+90 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-arm
+91 silly reify mark deleted [
+91 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/linux-arm'
+91 silly reify ]
+92 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/freebsd-x64
+93 silly reify mark deleted [
+93 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/freebsd-x64'
+93 silly reify ]
+94 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/freebsd-arm64
+95 silly reify mark deleted [
+95 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/freebsd-arm64'
+95 silly reify ]
+96 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/darwin-x64
+97 silly reify mark deleted [
+97 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/darwin-x64'
+97 silly reify ]
+98 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/darwin-arm64
+99 silly reify mark deleted [
+99 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/darwin-arm64'
+99 silly reify ]
+100 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/android-x64
+101 silly reify mark deleted [
+101 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/android-x64'
+101 silly reify ]
+102 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/android-arm64
+103 silly reify mark deleted [
+103 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/android-arm64'
+103 silly reify ]
+104 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/android-arm
+105 silly reify mark deleted [
+105 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/android-arm'
+105 silly reify ]
+106 verbose reify failed optional dependency /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/aix-ppc64
+107 silly reify mark deleted [
+107 silly reify   '/home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result/node_modules/@esbuild/aix-ppc64'
+107 silly reify ]
+108 http cache vite@https://registry.npmjs.org/vite/-/vite-7.2.4.tgz 0ms (cache hit)
+109 http cache three@https://registry.npmjs.org/three/-/three-0.181.2.tgz 0ms (cache hit)
+110 http cache source-map-js@https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz 0ms (cache hit)
+111 http cache typescript@https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz 0ms (cache hit)
+112 http cache rollup@https://registry.npmjs.org/rollup/-/rollup-4.53.3.tgz 0ms (cache hit)
+113 http cache postcss@https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz 0ms (cache hit)
+114 http cache picomatch@https://registry.npmjs.org/picomatch/-/picomatch-4.0.3.tgz 0ms (cache hit)
+115 http cache tinyglobby@https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.15.tgz 0ms (cache hit)
+116 http cache picocolors@https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz 0ms (cache hit)
+117 http cache nanoid@https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz 0ms (cache hit)
+118 http cache meshoptimizer@https://registry.npmjs.org/meshoptimizer/-/meshoptimizer-0.22.0.tgz 0ms (cache hit)
+119 http cache fdir@https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz 0ms (cache hit)
+120 http cache fflate@https://registry.npmjs.org/fflate/-/fflate-0.8.2.tgz 0ms (cache hit)
+121 http cache esbuild@https://registry.npmjs.org/esbuild/-/esbuild-0.25.12.tgz 0ms (cache hit)
+122 http cache cannon-es@https://registry.npmjs.org/cannon-es/-/cannon-es-0.20.0.tgz 0ms (cache hit)
+123 http cache @webgpu/types@https://registry.npmjs.org/@webgpu/types/-/types-0.1.66.tgz 0ms (cache hit)
+124 http cache @types/webxr@https://registry.npmjs.org/@types/webxr/-/webxr-0.5.24.tgz 0ms (cache hit)
+125 http cache @types/three@https://registry.npmjs.org/@types/three/-/three-0.181.0.tgz 0ms (cache hit)
+126 http cache @types/stats.js@https://registry.npmjs.org/@types/stats.js/-/stats.js-0.17.4.tgz 0ms (cache hit)
+127 http cache @types/estree@https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz 0ms (cache hit)
+128 http cache @tweenjs/tween.js@https://registry.npmjs.org/@tweenjs/tween.js/-/tween.js-23.1.3.tgz 0ms (cache hit)
+129 http cache @rollup/rollup-linux-x64-musl@https://registry.npmjs.org/@rollup/rollup-linux-x64-musl/-/rollup-linux-x64-musl-4.53.3.tgz 0ms (cache hit)
+130 http cache @rollup/rollup-linux-x64-gnu@https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.53.3.tgz 0ms (cache hit)
+131 http cache @esbuild/linux-x64@https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.25.12.tgz 0ms (cache hit)
+132 http cache @dimforge/rapier3d-compat@https://registry.npmjs.org/@dimforge/rapier3d-compat/-/rapier3d-compat-0.12.0.tgz 0ms (cache hit)
+133 silly tarball no local data for three@https://registry.npmjs.org/three/-/three-0.181.2.tgz. Extracting by manifest.
+134 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 1307ms
+135 silly audit report {}
+136 http fetch GET 200 https://registry.npmjs.org/three/-/three-0.181.2.tgz 4299ms (cache miss)
+137 info run esbuild@0.25.12 postinstall node_modules/esbuild node install.js
+138 info run esbuild@0.25.12 postinstall { code: 0, signal: null }
+139 silly ADD node_modules/vite
+140 silly ADD node_modules/typescript
+141 silly ADD node_modules/tinyglobby
+142 silly ADD node_modules/three
+143 silly ADD node_modules/source-map-js
+144 silly ADD node_modules/rollup
+145 silly ADD node_modules/postcss
+146 silly ADD node_modules/picomatch
+147 silly ADD node_modules/picocolors
+148 silly ADD node_modules/nanoid
+149 silly ADD node_modules/meshoptimizer
+150 silly ADD
+151 silly ADD node_modules/fflate
+152 silly ADD node_modules/fdir
+153 silly ADD node_modules/esbuild
+154 silly ADD node_modules/cannon-es
+155 silly ADD node_modules/@webgpu/types
+156 silly ADD node_modules/@types/webxr
+157 silly ADD node_modules/@types/three
+158 silly ADD node_modules/@types/stats.js
+159 silly ADD node_modules/@types/estree
+160 silly ADD node_modules/@tweenjs/tween.js
+161 silly ADD
+162 silly ADD
+163 silly ADD
+164 silly ADD
+165 silly ADD
+166 silly ADD node_modules/@rollup/rollup-linux-x64-musl
+167 silly ADD node_modules/@rollup/rollup-linux-x64-gnu
+168 silly ADD
+169 silly ADD
+170 silly ADD
+171 silly ADD
+172 silly ADD
+173 silly ADD
+174 silly ADD
+175 silly ADD
+176 silly ADD
+177 silly ADD
+178 silly ADD
+179 silly ADD
+180 silly ADD
+181 silly ADD
+182 silly ADD
+183 silly ADD
+184 silly ADD
+185 silly ADD
+186 silly ADD
+187 silly ADD
+188 silly ADD
+189 silly ADD
+190 silly ADD
+191 silly ADD
+192 silly ADD node_modules/@esbuild/linux-x64
+193 silly ADD
+194 silly ADD
+195 silly ADD
+196 silly ADD
+197 silly ADD
+198 silly ADD
+199 silly ADD
+200 silly ADD
+201 silly ADD
+202 silly ADD
+203 silly ADD
+204 silly ADD
+205 silly ADD
+206 silly ADD
+207 silly ADD
+208 silly ADD
+209 silly ADD node_modules/@dimforge/rapier3d-compat
+210 verbose cwd /home/alcovp/git/codex-demo/.codex/jobs/job-20251123-000607/worktrees/result
+211 verbose os Linux 6.8.0-87-generic
+212 verbose node v22.16.0
+213 verbose npm  v10.9.2
+214 verbose exit 0
+215 info ok

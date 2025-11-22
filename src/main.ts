@@ -1,35 +1,39 @@
 import * as THREE from "three";
+import {
+  Body,
+  Box as CannonBox,
+  ContactMaterial,
+  Material as CannonMaterial,
+  Plane,
+  Vec3,
+  World,
+} from "cannon-es";
 
-type Point = { x: number; y: number };
-type GameState = "idle" | "playing" | "paused" | "gameover";
+type Cell = { x: number; y: number };
+type GameState = "idle" | "playing" | "paused" | "exploding";
 
 const settings = {
-  columns: 20,
-  rows: 20,
-  tile: 30,
-  tickMs: 140,
+  columns: 16,
+  rows: 16,
+  tileSize: 1,
+  tickMs: 160,
+};
+
+const colors = {
   background: "#0b0f16",
-  grid: "#d1d5db",
+  grid: "#1e2533",
   snake: "#4ade80",
   snakeHead: "#22c55e",
   apple: "#f43f5e",
+  floor: "#0f172a",
 };
 
-const canvas = (() => {
-  const element = document.getElementById("game");
-  if (!(element instanceof HTMLCanvasElement)) {
-    throw new Error("Не найден canvas с id=\"game\"");
-  }
-  return element;
-})();
-const unit = settings.tile;
-const boardWidth = settings.columns * unit;
-const boardHeight = settings.rows * unit;
-const boardOffset = new THREE.Vector3(
-  -boardWidth / 2 + unit / 2,
-  0,
-  -boardHeight / 2 + unit / 2,
-);
+const canvasElement = document.getElementById("game");
+if (!(canvasElement instanceof HTMLCanvasElement)) {
+  throw new Error('Не найден canvas с id="game"');
+}
+const canvas = canvasElement;
+
 const statusLabel = (() => {
   const element = document.getElementById("status-label");
   if (!(element instanceof HTMLElement)) {
@@ -80,83 +84,107 @@ const menuAction = (() => {
   return element;
 })();
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.setClearColor(settings.background, 1);
-renderer.setSize(boardWidth, boardHeight, false);
-
-const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000);
-const cameraHeight = Math.max(boardWidth, boardHeight) * 0.9;
-camera.position.set(boardWidth * 0.35, cameraHeight, boardHeight * 0.9);
-camera.lookAt(0, 0, 0);
-
-const ambient = new THREE.AmbientLight(0xffffff, 0.45);
-scene.add(ambient);
-const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
-keyLight.position.set(boardWidth, boardHeight * 1.4, boardHeight);
-scene.add(keyLight);
-const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
-fillLight.position.set(-boardWidth * 0.6, boardHeight, -boardHeight * 0.5);
-scene.add(fillLight);
-
-const floorMaterial = new THREE.MeshStandardMaterial({
-  color: "#0f172a",
-  roughness: 0.9,
-  metalness: 0.02,
-});
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(boardWidth + unit, boardHeight + unit),
-  floorMaterial,
-);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
-
-scene.add(createGrid());
-
-const snakeGeometry = new THREE.BoxGeometry(unit * 0.9, unit * 0.9, unit * 0.9);
-const snakeMaterial = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(settings.snake),
-});
-const snakeHeadMaterial = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(settings.snakeHead),
-});
-
-const appleGeometry = new THREE.BoxGeometry(unit * 0.8, unit * 0.8, unit * 0.8);
-const appleMaterial = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(settings.apple),
-  emissive: new THREE.Color(settings.apple),
-  emissiveIntensity: 0.22,
-});
-
-const snakeMeshes: THREE.Mesh[] = [];
-const appleMesh = new THREE.Mesh(appleGeometry, appleMaterial);
-scene.add(appleMesh);
-
 const stateLabelByState: Record<GameState, string> = {
   idle: "Ожидание",
   playing: "Игра",
   paused: "Пауза",
-  gameover: "Поражение",
+  exploding: "Поражение",
 };
 
-// Направление движения: текущие и запрошенные стрелками векторы.
-let direction: Point = { x: 1, y: 0 };
-let nextDirection: Point = { x: 1, y: 0 };
+const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-let snake: Point[] = [];
-let apple: Point = { x: 0, y: 0 };
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(colors.background);
+
+const boardWidth = settings.columns * settings.tileSize;
+const boardDepth = settings.rows * settings.tileSize;
+const camera = new THREE.PerspectiveCamera(
+  55,
+  canvas.clientWidth / canvas.clientHeight,
+  0.1,
+  200,
+);
+camera.position.set(boardWidth * 0.45, boardWidth * 0.9, boardDepth * 0.75);
+camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+keyLight.position.set(12, 16, 10);
+keyLight.castShadow = false;
+scene.add(keyLight);
+
+const floorMaterial = new THREE.MeshStandardMaterial({
+  color: colors.floor,
+  metalness: 0.15,
+  roughness: 0.85,
+});
+const floorMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(boardWidth + 1, 0.4, boardDepth + 1),
+  floorMaterial,
+);
+floorMesh.position.set(0, -0.2, 0);
+floorMesh.receiveShadow = true;
+scene.add(floorMesh);
+
+const gridHelper = new THREE.GridHelper(
+  boardWidth,
+  settings.columns,
+  colors.grid,
+  colors.grid,
+);
+gridHelper.position.y = 0.001;
+scene.add(gridHelper);
+
+const snakeGeometry = new THREE.BoxGeometry(
+  settings.tileSize * 0.9,
+  settings.tileSize * 0.9,
+  settings.tileSize * 0.9,
+);
+const snakeMaterial = new THREE.MeshStandardMaterial({ color: colors.snake });
+const snakeHeadMaterial = new THREE.MeshStandardMaterial({
+  color: colors.snakeHead,
+  emissive: new THREE.Color(colors.snakeHead).multiplyScalar(0.1),
+});
+const snakeMeshes: THREE.Mesh[] = [];
+const snakeGroup = new THREE.Group();
+scene.add(snakeGroup);
+
+const appleGeometry = new THREE.SphereGeometry(
+  settings.tileSize * 0.35,
+  22,
+  22,
+);
+const appleMaterial = new THREE.MeshStandardMaterial({
+  color: colors.apple,
+  emissive: new THREE.Color(colors.apple).multiplyScalar(0.2),
+});
+const appleMesh = new THREE.Mesh(appleGeometry, appleMaterial);
+appleMesh.castShadow = false;
+scene.add(appleMesh);
+
+let direction: Cell = { x: 1, y: 0 };
+let nextDirection: Cell = { x: 1, y: 0 };
+let snake: Cell[] = [];
+let apple: Cell = { x: 0, y: 0 };
 let gameState: GameState = "idle";
 let score = 0;
+
+let physicsWorld: World | null = null;
+let physicsBodies: Body[] = [];
+let explosionTimeoutId: number | null = null;
+
+let tickAccumulatorMs = 0;
+let lastFrame = performance.now();
 
 function setGameState(next: GameState): void {
   gameState = next;
   statusLabel.textContent = stateLabelByState[next];
-  pauseButton.disabled = next === "idle" || next === "gameover";
-  pauseButton.textContent = next === "paused" ? "Продолжить" : "Пауза";
-  pauseButton.setAttribute("aria-pressed", next === "paused" ? "true" : "false");
+  const paused = next === "paused";
+  pauseButton.disabled = next === "idle" || next === "exploding";
+  pauseButton.textContent = paused ? "Продолжить" : "Пауза";
+  pauseButton.setAttribute("aria-pressed", paused ? "true" : "false");
 }
 
 function updateScoreDisplay(): void {
@@ -181,154 +209,128 @@ function hideMenu(): void {
   menu.classList.add("hidden");
 }
 
-function createGrid(): THREE.LineSegments {
-  const positions: number[] = [];
-  for (let col = 0; col <= settings.columns; col += 1) {
-    const x = -boardWidth / 2 + col * unit;
-    positions.push(x, 0.01, -boardHeight / 2, x, 0.01, boardHeight / 2);
-  }
-  for (let row = 0; row <= settings.rows; row += 1) {
-    const z = -boardHeight / 2 + row * unit;
-    positions.push(-boardWidth / 2, 0.01, z, boardWidth / 2, 0.01, z);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  const material = new THREE.LineBasicMaterial({
-    color: new THREE.Color(settings.grid),
-    transparent: true,
-    opacity: 0.18,
-  });
-  return new THREE.LineSegments(geometry, material);
+function gridToWorld(cell: Cell): THREE.Vector3 {
+  const x = (cell.x - settings.columns / 2 + 0.5) * settings.tileSize;
+  const z = (cell.y - settings.rows / 2 + 0.5) * settings.tileSize;
+  return new THREE.Vector3(x, settings.tileSize * 0.5, z);
 }
 
-function cellToWorld(point: Point): THREE.Vector3 {
-  return new THREE.Vector3(
-    boardOffset.x + point.x * unit,
-    unit * 0.45,
-    boardOffset.z + point.y * unit,
+function resizeRenderer(): void {
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (canvas.width !== width || canvas.height !== height) {
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  }
+}
+
+function isOnSnake(cell: Cell): boolean {
+  return snake.some((segment) => segment.x === cell.x && segment.y === cell.y);
+}
+
+function isOutOfBounds(cell: Cell): boolean {
+  return (
+    cell.x < 0 ||
+    cell.y < 0 ||
+    cell.x >= settings.columns ||
+    cell.y >= settings.rows
   );
+}
+
+function spawnApple(): Cell {
+  const freeCells: Cell[] = [];
+  for (let y = 0; y < settings.rows; y += 1) {
+    for (let x = 0; x < settings.columns; x += 1) {
+      const candidate = { x, y };
+      if (!isOnSnake(candidate)) {
+        freeCells.push(candidate);
+      }
+    }
+  }
+  if (freeCells.length === 0) {
+    return snake[0] ? { ...snake[0] } : { x: 0, y: 0 };
+  }
+  const pick = Math.floor(Math.random() * freeCells.length);
+  return freeCells[pick] ?? { x: 0, y: 0 };
 }
 
 function ensureSnakeMeshes(): void {
   while (snakeMeshes.length < snake.length) {
-    const mesh = new THREE.Mesh(snakeGeometry, snakeMaterial);
-    scene.add(mesh);
-    snakeMeshes.push(mesh);
+    const segment = new THREE.Mesh(snakeGeometry, snakeMaterial);
+    segment.castShadow = true;
+    snakeMeshes.push(segment);
+    snakeGroup.add(segment);
   }
   while (snakeMeshes.length > snake.length) {
-    const mesh = snakeMeshes.pop();
-    if (mesh) {
-      scene.remove(mesh);
+    const segment = snakeMeshes.pop();
+    if (segment) {
+      snakeGroup.remove(segment);
     }
   }
+
+  snakeMeshes.forEach((mesh, index) => {
+    mesh.material = index === 0 ? snakeHeadMaterial : snakeMaterial;
+  });
+}
+
+function updateSnakeMeshesFromGrid(): void {
+  ensureSnakeMeshes();
+  snakeMeshes.forEach((mesh) => {
+    mesh.quaternion.identity();
+  });
   snake.forEach((segment, index) => {
     const mesh = snakeMeshes[index];
-    if (!mesh) return;
-    mesh.material = index === 0 ? snakeHeadMaterial : snakeMaterial;
-    const world = cellToWorld(segment);
-    mesh.position.set(world.x, world.y, world.z);
+    if (!mesh) {
+      return;
+    }
+    const worldPos = gridToWorld(segment);
+    mesh.position.copy(worldPos);
   });
 }
 
 function updateAppleMesh(): void {
-  const world = cellToWorld(apple);
-  appleMesh.position.set(world.x, world.y, world.z);
+  const worldPos = gridToWorld(apple);
+  appleMesh.position.copy(worldPos);
 }
 
-function renderScene(): void {
-  ensureSnakeMeshes();
-  updateAppleMesh();
-  renderer.render(scene, camera);
-}
-
-function handleResize(): void {
-  const width = canvas.clientWidth || boardWidth;
-  const height = (width * boardHeight) / boardWidth;
-  renderer.setSize(width, height, false);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-  renderScene();
-}
-
-function resetGame(): void {
-  const startX = Math.floor(settings.columns / 2);
-  const startY = Math.floor(settings.rows / 2);
+function resetRound(): void {
+  destroyPhysicsWorld();
   direction = { x: 1, y: 0 };
   nextDirection = { x: 1, y: 0 };
+  const startX = Math.floor(settings.columns / 2);
+  const startY = Math.floor(settings.rows / 2);
   snake = [
     { x: startX, y: startY },
     { x: startX - 1, y: startY },
     { x: startX - 2, y: startY },
   ];
   apple = spawnApple();
-  renderScene();
+  tickAccumulatorMs = 0;
+  updateSnakeMeshesFromGrid();
+  updateAppleMesh();
 }
 
-function spawnApple(): Point {
-  const freeCells: Point[] = [];
-  for (let y = 0; y < settings.rows; y += 1) {
-    for (let x = 0; x < settings.columns; x += 1) {
-      const cell = { x, y };
-      if (!isOnSnake(cell)) {
-        freeCells.push(cell);
-      }
-    }
+function cancelExplosionTimeout(): void {
+  if (explosionTimeoutId !== null) {
+    window.clearTimeout(explosionTimeoutId);
+    explosionTimeoutId = null;
   }
-  if (freeCells.length === 0) {
-    const fallback = snake[0];
-    return fallback ? { ...fallback } : { x: 0, y: 0 };
-  }
-  const pick = Math.floor(Math.random() * freeCells.length);
-  const cell = freeCells[pick];
-  return cell ?? { x: 0, y: 0 };
 }
 
-function isOnSnake(point: Point): boolean {
-  return snake.some((segment) => segment.x === point.x && segment.y === point.y);
+function startNewGame(): void {
+  cancelExplosionTimeout();
+  score = 0;
+  updateScoreDisplay();
+  resetRound();
+  hideMenu();
+  setGameState("playing");
 }
 
-function isOutOfBounds(point: Point): boolean {
-  return (
-    point.x < 0 ||
-    point.y < 0 ||
-    point.x >= settings.columns ||
-    point.y >= settings.rows
-  );
-}
-
-function step(): void {
+function tryChangeDirection(requested: Cell): void {
   if (gameState !== "playing") {
     return;
   }
-
-  direction = nextDirection;
-  const head = snake[0];
-  if (!head) {
-    return;
-  }
-  const newHead: Point = { x: head.x + direction.x, y: head.y + direction.y };
-
-  if (isOutOfBounds(newHead) || isOnSnake(newHead)) {
-    setGameState("gameover");
-    showGameOverMenu();
-    renderScene();
-    return;
-  }
-
-  const ateApple = newHead.x === apple.x && newHead.y === apple.y;
-  snake = [newHead, ...snake];
-  if (!ateApple) {
-    snake.pop();
-  } else {
-    score += 1;
-    updateScoreDisplay();
-    apple = spawnApple();
-  }
-
-  renderScene();
-}
-
-function tryChangeDirection(requested: Point): void {
   const reversing =
     requested.x + direction.x === 0 && requested.y + direction.y === 0;
   if (reversing) {
@@ -337,12 +339,17 @@ function tryChangeDirection(requested: Point): void {
   nextDirection = requested;
 }
 
-const directionsByKey: Record<string, Point> = {
+const directionsByKey: Record<string, Cell> = {
   ArrowUp: { x: 0, y: -1 },
   ArrowDown: { x: 0, y: 1 },
   ArrowLeft: { x: -1, y: 0 },
   ArrowRight: { x: 1, y: 0 },
 };
+
+function handleResize(): void {
+  resizeRenderer();
+  renderer.render(scene, camera);
+}
 
 window.addEventListener("resize", handleResize);
 window.addEventListener("keydown", (event) => {
@@ -356,11 +363,21 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (event.key === "Enter") {
+    if (gameState === "idle") {
+      event.preventDefault();
+      startNewGame();
+      return;
+    }
+    if (gameState === "exploding") {
+      event.preventDefault();
+      finishExplosion();
+      return;
+    }
+  }
+
   const requested = directionsByKey[event.key];
   if (!requested) {
-    return;
-  }
-  if (gameState !== "playing") {
     return;
   }
 
@@ -369,12 +386,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 menuAction.addEventListener("click", () => {
-  resetGame();
-  score = 0;
-  updateScoreDisplay();
-  hideMenu();
-  setGameState("playing");
-  renderScene();
+  startNewGame();
 });
 
 pauseButton.addEventListener("click", () => {
@@ -385,9 +397,160 @@ pauseButton.addEventListener("click", () => {
   }
 });
 
-resetGame();
+function stepGame(): void {
+  if (gameState !== "playing") {
+    return;
+  }
+  direction = nextDirection;
+  const head = snake[0];
+  if (!head) {
+    return;
+  }
+  const newHead: Cell = { x: head.x + direction.x, y: head.y + direction.y };
+
+  if (isOutOfBounds(newHead) || isOnSnake(newHead)) {
+    triggerDeath();
+    return;
+  }
+
+  const ateApple = newHead.x === apple.x && newHead.y === apple.y;
+  snake = [newHead, ...snake];
+  if (!ateApple) {
+    snake.pop();
+  } else {
+    score += 1;
+    updateScoreDisplay();
+    apple = spawnApple();
+    updateAppleMesh();
+  }
+
+  updateSnakeMeshesFromGrid();
+}
+
+function triggerDeath(): void {
+  if (gameState === "exploding") {
+    return;
+  }
+  setGameState("exploding");
+  cancelExplosionTimeout();
+  startExplosionPhysics();
+  explosionTimeoutId = window.setTimeout(() => {
+    if (gameState === "exploding") {
+      finishExplosion();
+    }
+  }, 2600);
+}
+
+function finishExplosion(): void {
+  cancelExplosionTimeout();
+  resetRound();
+  setGameState("idle");
+  showGameOverMenu();
+}
+
+function startExplosionPhysics(): void {
+  destroyPhysicsWorld();
+  physicsWorld = new World({
+    gravity: new Vec3(0, -18, 0),
+  });
+  const groundMaterial = new CannonMaterial("ground");
+  const segmentMaterial = new CannonMaterial("segment");
+  physicsWorld.addContactMaterial(
+    new ContactMaterial(segmentMaterial, groundMaterial, {
+      friction: 0.45,
+      restitution: 0.35,
+    }),
+  );
+
+  const groundBody = new Body({
+    mass: 0,
+    material: groundMaterial,
+  });
+  groundBody.addShape(new Plane());
+  groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+  physicsWorld.addBody(groundBody);
+
+  const halfSize = (settings.tileSize * 0.9) / 2;
+  physicsBodies = snakeMeshes.map((mesh) => {
+    const body = new Body({
+      mass: 1,
+      material: segmentMaterial,
+      position: new Vec3(mesh.position.x, mesh.position.y, mesh.position.z),
+      angularDamping: 0.1,
+      linearDamping: 0.02,
+    });
+    body.addShape(new CannonBox(new Vec3(halfSize, halfSize, halfSize)));
+    body.quaternion.set(
+      mesh.quaternion.x,
+      mesh.quaternion.y,
+      mesh.quaternion.z,
+      mesh.quaternion.w,
+    );
+    physicsWorld!.addBody(body);
+
+    const impulseStrength = 5 + Math.random() * 2;
+    const impulse = new Vec3(
+      (Math.random() - 0.5) * impulseStrength,
+      impulseStrength * 0.7,
+      (Math.random() - 0.5) * impulseStrength,
+    );
+    body.applyImpulse(impulse, body.position);
+    return body;
+  });
+}
+
+function destroyPhysicsWorld(): void {
+  if (!physicsWorld) {
+    return;
+  }
+  physicsBodies.forEach((body) => physicsWorld?.removeBody(body));
+  physicsBodies = [];
+  physicsWorld = null;
+}
+
+function stepPhysics(deltaSeconds: number): void {
+  if (!physicsWorld) {
+    return;
+  }
+  physicsWorld.step(1 / 60, deltaSeconds, 3);
+  physicsBodies.forEach((body, index) => {
+    const mesh = snakeMeshes[index];
+    if (!mesh) {
+      return;
+    }
+    mesh.position.set(body.position.x, body.position.y, body.position.z);
+    mesh.quaternion.set(
+      body.quaternion.x,
+      body.quaternion.y,
+      body.quaternion.z,
+      body.quaternion.w,
+    );
+  });
+}
+
+function animate(now: number): void {
+  const deltaMs = now - lastFrame;
+  lastFrame = now;
+
+  if (gameState === "playing") {
+    tickAccumulatorMs += deltaMs;
+    while (tickAccumulatorMs >= settings.tickMs) {
+      tickAccumulatorMs -= settings.tickMs;
+      stepGame();
+    }
+  } else {
+    tickAccumulatorMs = 0;
+  }
+
+  stepPhysics(deltaMs / 1000);
+  resizeRenderer();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
 updateScoreDisplay();
-setGameState("idle");
+resetRound();
 showStartMenu();
-handleResize();
-window.setInterval(step, settings.tickMs);
+setGameState("idle");
+resizeRenderer();
+requestAnimationFrame(animate);
