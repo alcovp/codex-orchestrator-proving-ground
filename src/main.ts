@@ -1,4 +1,5 @@
 type Point = { x: number; y: number };
+type GameState = "idle" | "playing" | "paused" | "gameover";
 
 const settings = {
   columns: 20,
@@ -12,18 +13,80 @@ const settings = {
   apple: "#f43f5e",
 };
 
-const canvas = document.getElementById("game") as HTMLCanvasElement | null;
-if (!canvas) {
-  throw new Error("Не найден canvas с id=\"game\"");
-}
+const canvas = (() => {
+  const element = document.getElementById("game");
+  if (!(element instanceof HTMLCanvasElement)) {
+    throw new Error("Не найден canvas с id=\"game\"");
+  }
+  return element;
+})();
+const statusLabel = (() => {
+  const element = document.getElementById("status-label");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найден элемент статуса");
+  }
+  return element;
+})();
+const scoreValue = (() => {
+  const element = document.getElementById("score-value");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найден счётчик очков");
+  }
+  return element;
+})();
+const pauseButton = (() => {
+  const element = document.getElementById("pause-btn");
+  if (!(element instanceof HTMLButtonElement)) {
+    throw new Error("Не найдена кнопка паузы");
+  }
+  return element;
+})();
+const menu = (() => {
+  const element = document.getElementById("menu");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найдено меню");
+  }
+  return element;
+})();
+const menuTitle = (() => {
+  const element = document.getElementById("menu-title");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найден заголовок меню");
+  }
+  return element;
+})();
+const menuSubtitle = (() => {
+  const element = document.getElementById("menu-subtitle");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найден подзаголовок меню");
+  }
+  return element;
+})();
+const menuAction = (() => {
+  const element = document.getElementById("menu-action");
+  if (!(element instanceof HTMLButtonElement)) {
+    throw new Error("Не найдена кнопка в меню");
+  }
+  return element;
+})();
 
-const context = canvas.getContext("2d");
-if (!context) {
-  throw new Error("Canvas 2D контекст недоступен");
-}
+const context = (() => {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas 2D контекст недоступен");
+  }
+  return ctx;
+})();
 
 canvas.width = settings.columns * settings.tile;
 canvas.height = settings.rows * settings.tile;
+
+const stateLabelByState: Record<GameState, string> = {
+  idle: "Ожидание",
+  playing: "Игра",
+  paused: "Пауза",
+  gameover: "Поражение",
+};
 
 // Направление движения: текущие и запрошенные стрелками векторы.
 let direction: Point = { x: 1, y: 0 };
@@ -31,6 +94,38 @@ let nextDirection: Point = { x: 1, y: 0 };
 
 let snake: Point[] = [];
 let apple: Point = { x: 0, y: 0 };
+let gameState: GameState = "idle";
+let score = 0;
+
+function setGameState(next: GameState): void {
+  gameState = next;
+  statusLabel.textContent = stateLabelByState[next];
+  pauseButton.disabled = next === "idle" || next === "gameover";
+  pauseButton.textContent = next === "paused" ? "Продолжить" : "Пауза";
+  pauseButton.setAttribute("aria-pressed", next === "paused" ? "true" : "false");
+}
+
+function updateScoreDisplay(): void {
+  scoreValue.textContent = score.toString();
+}
+
+function showStartMenu(): void {
+  menuTitle.textContent = "Змейка";
+  menuSubtitle.textContent = "Нажмите старт, чтобы начать партию";
+  menuAction.textContent = "Начать игру";
+  menu.classList.remove("hidden");
+}
+
+function showGameOverMenu(): void {
+  menuTitle.textContent = "Поражение";
+  menuSubtitle.textContent = "Змейка врезалась. Попробуйте снова!";
+  menuAction.textContent = "Начать заново";
+  menu.classList.remove("hidden");
+}
+
+function hideMenu(): void {
+  menu.classList.add("hidden");
+}
 
 function resetGame(): void {
   const startX = Math.floor(settings.columns / 2);
@@ -56,10 +151,12 @@ function spawnApple(): Point {
     }
   }
   if (freeCells.length === 0) {
-    return { ...snake[0] };
+    const fallback = snake[0];
+    return fallback ? { ...fallback } : { x: 0, y: 0 };
   }
   const pick = Math.floor(Math.random() * freeCells.length);
-  return freeCells[pick];
+  const cell = freeCells[pick];
+  return cell ?? { x: 0, y: 0 };
 }
 
 function isOnSnake(point: Point): boolean {
@@ -117,12 +214,20 @@ function draw(): void {
 }
 
 function step(): void {
+  if (gameState !== "playing") {
+    return;
+  }
+
   direction = nextDirection;
   const head = snake[0];
+  if (!head) {
+    return;
+  }
   const newHead: Point = { x: head.x + direction.x, y: head.y + direction.y };
 
   if (isOutOfBounds(newHead) || isOnSnake(newHead)) {
-    resetGame();
+    setGameState("gameover");
+    showGameOverMenu();
     draw();
     return;
   }
@@ -132,6 +237,8 @@ function step(): void {
   if (!ateApple) {
     snake.pop();
   } else {
+    score += 1;
+    updateScoreDisplay();
     apple = spawnApple();
   }
 
@@ -155,13 +262,48 @@ const directionsByKey: Record<string, Point> = {
 };
 
 window.addEventListener("keydown", (event) => {
-  const requested = directionsByKey[event.key];
-  if (requested) {
+  if (event.key === " " || event.key === "Spacebar") {
     event.preventDefault();
-    tryChangeDirection(requested);
+    if (gameState === "playing") {
+      setGameState("paused");
+    } else if (gameState === "paused") {
+      setGameState("playing");
+    }
+    return;
+  }
+
+  const requested = directionsByKey[event.key];
+  if (!requested) {
+    return;
+  }
+  if (gameState !== "playing") {
+    return;
+  }
+
+  event.preventDefault();
+  tryChangeDirection(requested);
+});
+
+menuAction.addEventListener("click", () => {
+  resetGame();
+  score = 0;
+  updateScoreDisplay();
+  hideMenu();
+  setGameState("playing");
+  draw();
+});
+
+pauseButton.addEventListener("click", () => {
+  if (gameState === "playing") {
+    setGameState("paused");
+  } else if (gameState === "paused") {
+    setGameState("playing");
   }
 });
 
 resetGame();
 draw();
+updateScoreDisplay();
+setGameState("idle");
+showStartMenu();
 window.setInterval(step, settings.tickMs);
