@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0" />
+    <title>Змейка</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 20% 20%, #1c2430, #0d1117 55%);
+        color: #f4f5f6;
+        font-family: "Fira Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+      .panel {
+        background: rgba(16, 22, 30, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        border-radius: 16px;
+        padding: 16px 18px;
+        display: grid;
+        gap: 12px;
+        width: min(520px, 90vw);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      h1 {
+        margin: 0;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+        font-size: 20px;
+      }
+      .hint {
+        margin: 0;
+        color: #c1c7d0;
+        font-size: 14px;
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: #0b0f16;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-CVT9VxYF.js"></script>
+  </head>
+  <body>
+    <section class="panel">
+      <header>
+        <h1>Змейка</h1>
+        <div class="hint">Управление стрелками</div>
+      </header>
+      <canvas id="game" width="600" height="600" aria-label="Игровое поле"></canvas>
+    </section>
+  </body>
+</html>
