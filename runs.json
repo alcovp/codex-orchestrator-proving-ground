@@ -1,6 +1,13 @@
 {
   "runs": [
     {
+      "run": 5,
+      "commit": "284bd0e39d5c57bfdab0d342c1278ebde0a5cd6b",
+      "ref": "refs/heads/codex-solo",
+      "repository": "alcovp/codex-orchestrator-proving-ground",
+      "createdAt": "2025-11-25T01:50:44.443Z"
+    },
+    {
       "run": 4,
       "commit": "c2e7df22eb565a42e59c935de9e4fbca8f1155e4",
       "ref": "refs/heads/orchestrator",
