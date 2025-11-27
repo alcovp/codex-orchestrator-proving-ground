@@ -7,206 +7,45 @@
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap");
 
-      :root {
-        --bg: radial-gradient(circle at 30% 20%, #1a2331, #0b1019 55%);
-        --panel: rgba(9, 13, 20, 0.75);
-        --border: rgba(255, 255, 255, 0.08);
-        --text: #e8edf7;
-        --muted: #b4bfd4;
-        --accent: #4ade80;
-        --accent-2: #7c6bff;
-        color-scheme: dark;
-      }
       * {
         box-sizing: border-box;
       }
+      html,
       body {
         margin: 0;
-        min-height: 100vh;
-        display: flex;
-        align-items: stretch;
-        justify-content: center;
-        background: var(--bg);
-        color: var(--text);
+        height: 100%;
+      }
+      body {
         font-family: "Space Grotesk", "Fira Sans", system-ui, -apple-system, sans-serif;
-        padding: 22px;
-      }
-      .frame {
-        width: min(1200px, 100vw);
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-      }
-      .hud {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        background: linear-gradient(135deg, rgba(16, 22, 32, 0.9), rgba(13, 19, 29, 0.7));
-        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35);
-      }
-      .title {
-        display: flex;
-        align-items: baseline;
-        gap: 10px;
-        letter-spacing: 0.04em;
-      }
-      .title h1 {
-        margin: 0;
-        font-weight: 700;
-        font-size: 22px;
-      }
-      .title span {
-        color: var(--muted);
-        font-size: 14px;
-      }
-      .metrics {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border-radius: 999px;
-        padding: 8px 12px;
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.02);
-        color: var(--muted);
-        font-size: 14px;
-      }
-      .pill strong {
-        color: var(--text);
-        letter-spacing: 0.01em;
-      }
-      .viewport {
-        position: relative;
-        border-radius: 18px;
+        background: radial-gradient(circle at 20% 20%, #152032, #05080f 65%);
         overflow: hidden;
-        border: 1px solid var(--border);
-        background: linear-gradient(140deg, rgba(12, 16, 24, 0.9), rgba(10, 13, 21, 0.7));
-        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
-        min-height: min(70vh, 780px);
       }
       #scene-container {
-        position: absolute;
+        position: fixed;
         inset: 0;
+        touch-action: none;
       }
       #scene-container canvas {
         width: 100%;
         height: 100%;
         display: block;
       }
-      .overlay {
+      .sr {
         position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(180deg, rgba(7, 10, 16, 0.7), rgba(7, 10, 16, 0.55));
-        backdrop-filter: blur(8px);
-        transition: opacity 220ms ease, visibility 220ms ease;
-        visibility: hidden;
-        opacity: 0;
-      }
-      .overlay.overlay--visible {
-        visibility: visible;
-        opacity: 1;
-      }
-      .menu {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 22px 20px;
-        width: min(440px, 88vw);
-        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
-        display: grid;
-        gap: 12px;
-        text-align: center;
-      }
-      .menu .eyebrow {
-        margin: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-        font-size: 12px;
-      }
-      .menu h2 {
-        margin: 2px 0 6px;
-        font-size: 26px;
-      }
-      .menu p {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-      .menu button {
-        margin-top: 4px;
-        border: none;
-        border-radius: 12px;
-        padding: 12px 16px;
-        background: linear-gradient(135deg, var(--accent), #1dd1a1);
-        color: #05100a;
-        font-weight: 700;
-        font-size: 15px;
-        letter-spacing: 0.01em;
-        cursor: pointer;
-        transition: transform 140ms ease, box-shadow 140ms ease;
-        box-shadow: 0 12px 32px rgba(44, 255, 164, 0.25);
-      }
-      .menu button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 36px rgba(44, 255, 164, 0.35);
-      }
-      .menu .hint {
-        font-size: 13px;
-        color: var(--muted);
-      }
-      @media (max-width: 720px) {
-        body {
-          padding: 14px;
-        }
-        .hud {
-          grid-template-columns: 1fr;
-        }
-        .metrics {
-          justify-content: flex-start;
-          flex-wrap: wrap;
-        }
-        .viewport {
-          min-height: 70vh;
-        }
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
     </style>
   </head>
   <body>
-    <div class="frame">
-      <header class="hud">
-        <div class="title">
-          <h1>Змейка 3D</h1>
-          <span>Стратегический ракурс</span>
-        </div>
-        <div class="metrics">
-          <div class="pill">Состояние: <strong id="state-indicator">Меню</strong></div>
-          <div class="pill">Счёт: <strong id="score-value">0</strong></div>
-        </div>
-      </header>
-      <div class="viewport">
-        <div id="scene-container" aria-label="Игровое поле"></div>
-        <div class="overlay overlay--visible" id="menu-overlay">
-          <div class="menu">
-            <p class="eyebrow">Новая партия</p>
-            <h2>Змейка в объёме</h2>
-            <p id="menu-message">Нажмите, чтобы начать гонку за яблоками.</p>
-            <button id="start-button" type="button">Начать</button>
-            <p class="hint">Управляйте стрелками, резких разворотов назад нет.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="scene-container" aria-label="Игровое поле"></div>
+    <div class="sr" aria-live="polite" id="sr-label">Змейка 3D</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
