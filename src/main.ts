@@ -8,6 +8,7 @@ import {
   Vec3,
   World,
 } from "cannon-es";
+import { GameAudio } from "./audio";
 
 type Cell = { x: number; y: number };
 type GameState = "idle" | "playing" | "paused" | "exploding";
@@ -33,6 +34,20 @@ if (!(canvasElement instanceof HTMLCanvasElement)) {
   throw new Error('Не найден canvas с id="game"');
 }
 const canvas = canvasElement;
+const audio = new GameAudio();
+
+function requestAudioUnlock(): void {
+  void audio.unlockFromUserGesture();
+}
+
+function registerAudioUnlockListeners(): void {
+  const unlock = (): void => {
+    requestAudioUnlock();
+  };
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("touchstart", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+}
 
 const statusLabel = (() => {
   const element = document.getElementById("status-label");
@@ -90,6 +105,8 @@ const stateLabelByState: Record<GameState, string> = {
   paused: "Пауза",
   exploding: "Поражение",
 };
+
+registerAudioUnlockListeners();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -185,6 +202,7 @@ function setGameState(next: GameState): void {
   pauseButton.disabled = next === "idle" || next === "exploding";
   pauseButton.textContent = paused ? "Продолжить" : "Пауза";
   pauseButton.setAttribute("aria-pressed", paused ? "true" : "false");
+  audio.onStateChange(next);
 }
 
 function updateScoreDisplay(): void {
@@ -319,6 +337,8 @@ function cancelExplosionTimeout(): void {
 }
 
 function startNewGame(): void {
+  requestAudioUnlock();
+  audio.onLevelTransition();
   cancelExplosionTimeout();
   score = 0;
   updateScoreDisplay();
@@ -422,6 +442,7 @@ function stepGame(): void {
     updateScoreDisplay();
     apple = spawnApple();
     updateAppleMesh();
+    void audio.playPickup();
   }
 
   updateSnakeMeshesFromGrid();
@@ -432,6 +453,7 @@ function triggerDeath(): void {
     return;
   }
   setGameState("exploding");
+  void audio.playExplosion();
   cancelExplosionTimeout();
   startExplosionPhysics();
   explosionTimeoutId = window.setTimeout(() => {
