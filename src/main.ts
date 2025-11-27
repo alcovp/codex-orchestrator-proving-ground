@@ -10,13 +10,86 @@ import {
 } from "cannon-es";
 
 type Cell = { x: number; y: number };
-type GameState = "idle" | "playing" | "paused" | "exploding";
+type GameState =
+  | "idle"
+  | "playing"
+  | "paused"
+  | "exploding"
+  | "levelComplete"
+  | "campaignComplete";
+
+type ObstacleType = "wall" | "bush" | "water" | "rock";
+type Obstacle = { cell: Cell; type: ObstacleType };
+
+type ResourceType = "artifact" | "extraLife" | "timeSlow";
+type LevelResource = {
+  id: string;
+  type: ResourceType;
+  cell: Cell;
+  mandatory?: boolean;
+};
+type ActiveResource = LevelResource & { collected: boolean };
+
+type LevelDefinition = {
+  id: string;
+  name: string;
+  columns: number;
+  rows: number;
+  appleGoal: number;
+  tickMs?: number;
+  obstacles: Obstacle[];
+  resources: LevelResource[];
+};
+
+function verticalLine(
+  type: ObstacleType,
+  x: number,
+  from: number,
+  to: number,
+): Obstacle[] {
+  const result: Obstacle[] = [];
+  for (let y = from; y <= to; y += 1) {
+    result.push({ cell: { x, y }, type });
+  }
+  return result;
+}
+
+function horizontalLine(
+  type: ObstacleType,
+  y: number,
+  from: number,
+  to: number,
+): Obstacle[] {
+  const result: Obstacle[] = [];
+  for (let x = from; x <= to; x += 1) {
+    result.push({ cell: { x, y }, type });
+  }
+  return result;
+}
+
+const baseTickMs = 160;
+const baseLives = 3;
+const slowEffectDurationMs = 5500;
+const slowEffectMultiplier = 1.8;
 
 const settings = {
   columns: 16,
   rows: 16,
   tileSize: 1,
-  tickMs: 160,
+  tickMs: baseTickMs,
+};
+
+const obstacleColors: Record<ObstacleType, string> = {
+  wall: "#475569",
+  bush: "#16a34a",
+  water: "#0ea5e9",
+  rock: "#cbd5e1",
+};
+
+const resourceColors: Record<ResourceType, string> = {
+  artifact: "#facc15",
+  extraLife: "#a855f7",
+  timeSlow: "#38bdf8",
 };
 
 const colors = {
@@ -27,6 +100,294 @@ const colors = {
   apple: "#f43f5e",
   floor: "#0f172a",
 };
+
+const levels: LevelDefinition[] = [
+  {
+    id: "courtyard",
+    name: "Дворик",
+    columns: 12,
+    rows: 12,
+    appleGoal: 4,
+    obstacles: [
+      ...horizontalLine("bush", 9, 2, 4),
+      { cell: { x: 5, y: 2 }, type: "wall" },
+      { cell: { x: 6, y: 2 }, type: "wall" },
+      { cell: { x: 8, y: 8 }, type: "rock" },
+    ],
+    resources: [
+      {
+        id: "l1-artifact-1",
+        type: "artifact",
+        cell: { x: 9, y: 9 },
+        mandatory: true,
+      },
+      { id: "l1-slow-1", type: "timeSlow", cell: { x: 2, y: 2 } },
+    ],
+  },
+  {
+    id: "crossroad",
+    name: "Перекрёсток",
+    columns: 14,
+    rows: 14,
+    appleGoal: 5,
+    obstacles: [
+      ...verticalLine("wall", 7, 3, 10),
+      { cell: { x: 3, y: 7 }, type: "rock" },
+      { cell: { x: 10, y: 7 }, type: "bush" },
+      { cell: { x: 1, y: 5 }, type: "water" },
+    ],
+    resources: [
+      { id: "l2-life-1", type: "extraLife", cell: { x: 11, y: 2 } },
+      {
+        id: "l2-artifact-1",
+        type: "artifact",
+        cell: { x: 1, y: 12 },
+        mandatory: true,
+      },
+      { id: "l2-slow-1", type: "timeSlow", cell: { x: 12, y: 11 } },
+    ],
+  },
+  {
+    id: "terraces",
+    name: "Террасы",
+    columns: 16,
+    rows: 14,
+    appleGoal: 6,
+    obstacles: [
+      ...horizontalLine("wall", 5, 4, 7),
+      ...verticalLine("bush", 11, 7, 10),
+      { cell: { x: 2, y: 11 }, type: "water" },
+      { cell: { x: 13, y: 3 }, type: "rock" },
+    ],
+    resources: [
+      {
+        id: "l3-artifact-1",
+        type: "artifact",
+        cell: { x: 14, y: 12 },
+        mandatory: true,
+      },
+      {
+        id: "l3-artifact-2",
+        type: "artifact",
+        cell: { x: 1, y: 1 },
+        mandatory: true,
+      },
+      { id: "l3-life-1", type: "extraLife", cell: { x: 8, y: 1 } },
+    ],
+  },
+  {
+    id: "canals",
+    name: "Каналы",
+    columns: 16,
+    rows: 18,
+    appleGoal: 7,
+    obstacles: [
+      ...horizontalLine("water", 6, 3, 12),
+      ...horizontalLine("water", 12, 2, 13),
+      ...verticalLine("wall", 8, 4, 14),
+      { cell: { x: 4, y: 9 }, type: "rock" },
+      { cell: { x: 11, y: 14 }, type: "bush" },
+    ],
+    resources: [
+      { id: "l4-life-1", type: "extraLife", cell: { x: 2, y: 2 } },
+      {
+        id: "l4-artifact-1",
+        type: "artifact",
+        cell: { x: 14, y: 16 },
+        mandatory: true,
+      },
+      { id: "l4-slow-1", type: "timeSlow", cell: { x: 7, y: 8 } },
+    ],
+  },
+  {
+    id: "garden",
+    name: "Сад",
+    columns: 18,
+    rows: 18,
+    appleGoal: 8,
+    obstacles: [
+      ...horizontalLine("wall", 4, 3, 14),
+      ...horizontalLine("wall", 13, 3, 14),
+      ...verticalLine("wall", 3, 5, 12),
+      ...verticalLine("wall", 14, 5, 12),
+      { cell: { x: 9, y: 9 }, type: "water" },
+      { cell: { x: 6, y: 6 }, type: "bush" },
+    ],
+    resources: [
+      {
+        id: "l5-artifact-1",
+        type: "artifact",
+        cell: { x: 9, y: 2 },
+        mandatory: true,
+      },
+      {
+        id: "l5-artifact-2",
+        type: "artifact",
+        cell: { x: 16, y: 15 },
+        mandatory: true,
+      },
+      { id: "l5-life-1", type: "extraLife", cell: { x: 1, y: 8 } },
+      { id: "l5-slow-1", type: "timeSlow", cell: { x: 6, y: 12 } },
+    ],
+  },
+  {
+    id: "canyon",
+    name: "Каньон",
+    columns: 20,
+    rows: 14,
+    appleGoal: 8,
+    obstacles: [
+      ...verticalLine("rock", 9, 2, 11),
+      ...horizontalLine("bush", 6, 2, 8),
+      ...horizontalLine("bush", 7, 11, 17),
+      { cell: { x: 15, y: 3 }, type: "water" },
+      { cell: { x: 4, y: 10 }, type: "wall" },
+    ],
+    resources: [
+      {
+        id: "l6-artifact-1",
+        type: "artifact",
+        cell: { x: 18, y: 12 },
+        mandatory: true,
+      },
+      { id: "l6-life-1", type: "extraLife", cell: { x: 2, y: 1 } },
+      { id: "l6-slow-1", type: "timeSlow", cell: { x: 12, y: 5 } },
+    ],
+  },
+  {
+    id: "plateau",
+    name: "Плато",
+    columns: 22,
+    rows: 22,
+    appleGoal: 9,
+    obstacles: [
+      ...horizontalLine("wall", 5, 4, 17),
+      ...horizontalLine("wall", 16, 4, 17),
+      ...verticalLine("wall", 4, 6, 15),
+      ...verticalLine("wall", 17, 6, 15),
+      { cell: { x: 10, y: 10 }, type: "rock" },
+      { cell: { x: 11, y: 11 }, type: "rock" },
+      { cell: { x: 5, y: 18 }, type: "water" },
+    ],
+    resources: [
+      {
+        id: "l7-artifact-1",
+        type: "artifact",
+        cell: { x: 3, y: 3 },
+        mandatory: true,
+      },
+      {
+        id: "l7-artifact-2",
+        type: "artifact",
+        cell: { x: 18, y: 18 },
+        mandatory: true,
+      },
+      { id: "l7-life-1", type: "extraLife", cell: { x: 8, y: 4 } },
+      { id: "l7-slow-1", type: "timeSlow", cell: { x: 14, y: 14 } },
+    ],
+  },
+  {
+    id: "steps",
+    name: "Ступени",
+    columns: 24,
+    rows: 18,
+    appleGoal: 9,
+    obstacles: [
+      ...horizontalLine("bush", 4, 4, 19),
+      ...horizontalLine("bush", 9, 2, 15),
+      ...horizontalLine("bush", 13, 6, 21),
+      { cell: { x: 17, y: 5 }, type: "wall" },
+      { cell: { x: 4, y: 15 }, type: "rock" },
+    ],
+    resources: [
+      {
+        id: "l8-artifact-1",
+        type: "artifact",
+        cell: { x: 21, y: 15 },
+        mandatory: true,
+      },
+      {
+        id: "l8-artifact-2",
+        type: "artifact",
+        cell: { x: 2, y: 2 },
+        mandatory: true,
+      },
+      { id: "l8-life-1", type: "extraLife", cell: { x: 10, y: 7 } },
+      { id: "l8-slow-1", type: "timeSlow", cell: { x: 6, y: 13 } },
+    ],
+  },
+  {
+    id: "valley",
+    name: "Долина",
+    columns: 28,
+    rows: 20,
+    appleGoal: 10,
+    obstacles: [
+      ...horizontalLine("water", 6, 4, 23),
+      ...horizontalLine("water", 13, 4, 23),
+      ...verticalLine("rock", 4, 4, 15),
+      ...verticalLine("rock", 23, 4, 15),
+      { cell: { x: 14, y: 9 }, type: "bush" },
+      { cell: { x: 7, y: 2 }, type: "wall" },
+    ],
+    resources: [
+      {
+        id: "l9-artifact-1",
+        type: "artifact",
+        cell: { x: 25, y: 17 },
+        mandatory: true,
+      },
+      {
+        id: "l9-artifact-2",
+        type: "artifact",
+        cell: { x: 2, y: 17 },
+        mandatory: true,
+      },
+      { id: "l9-life-1", type: "extraLife", cell: { x: 14, y: 2 } },
+      { id: "l9-slow-1", type: "timeSlow", cell: { x: 9, y: 9 } },
+    ],
+  },
+  {
+    id: "capital",
+    name: "Столица",
+    columns: 30,
+    rows: 24,
+    appleGoal: 12,
+    obstacles: [
+      ...horizontalLine("wall", 4, 5, 24),
+      ...horizontalLine("wall", 19, 5, 24),
+      ...verticalLine("wall", 5, 4, 19),
+      ...verticalLine("wall", 24, 4, 19),
+      ...horizontalLine("water", 11, 8, 21),
+      ...verticalLine("rock", 15, 6, 17),
+      { cell: { x: 10, y: 8 }, type: "bush" },
+      { cell: { x: 20, y: 15 }, type: "bush" },
+    ],
+    resources: [
+      {
+        id: "l10-artifact-1",
+        type: "artifact",
+        cell: { x: 27, y: 21 },
+        mandatory: true,
+      },
+      {
+        id: "l10-artifact-2",
+        type: "artifact",
+        cell: { x: 2, y: 2 },
+        mandatory: true,
+      },
+      {
+        id: "l10-artifact-3",
+        type: "artifact",
+        cell: { x: 14, y: 4 },
+        mandatory: true,
+      },
+      { id: "l10-life-1", type: "extraLife", cell: { x: 7, y: 18 } },
+      { id: "l10-life-2", type: "extraLife", cell: { x: 22, y: 6 } },
+      { id: "l10-slow-1", type: "timeSlow", cell: { x: 12, y: 16 } },
+    ],
+  },
+];
 
 const canvasElement = document.getElementById("game");
 if (!(canvasElement instanceof HTMLCanvasElement)) {
@@ -45,6 +406,27 @@ const scoreValue = (() => {
   const element = document.getElementById("score-value");
   if (!(element instanceof HTMLElement)) {
     throw new Error("Не найден счётчик очков");
+  }
+  return element;
+})();
+const levelValue = (() => {
+  const element = document.getElementById("level-value");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найден счётчик уровня");
+  }
+  return element;
+})();
+const goalValue = (() => {
+  const element = document.getElementById("goal-value");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найдено описание цели");
+  }
+  return element;
+})();
+const livesValue = (() => {
+  const element = document.getElementById("lives-value");
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Не найдено поле жизней");
   }
   return element;
 })();
@@ -84,11 +466,15 @@ const menuAction = (() => {
   return element;
 })();
 
+let menuActionHandler: (() => void) | null = null;
+
 const stateLabelByState: Record<GameState, string> = {
   idle: "Ожидание",
   playing: "Игра",
   paused: "Пауза",
   exploding: "Поражение",
+  levelComplete: "Уровень пройден",
+  campaignComplete: "Все уровни",
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
@@ -97,13 +483,13 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(colors.background);
 
-const boardWidth = settings.columns * settings.tileSize;
-const boardDepth = settings.rows * settings.tileSize;
+let boardWidth = settings.columns * settings.tileSize;
+let boardDepth = settings.rows * settings.tileSize;
 const camera = new THREE.PerspectiveCamera(
   55,
   canvas.clientWidth / canvas.clientHeight,
   0.1,
-  200,
+  400,
 );
 camera.position.set(boardWidth * 0.45, boardWidth * 0.9, boardDepth * 0.75);
 camera.lookAt(new THREE.Vector3(0, 0, 0));
@@ -128,7 +514,7 @@ floorMesh.position.set(0, -0.2, 0);
 floorMesh.receiveShadow = true;
 scene.add(floorMesh);
 
-const gridHelper = new THREE.GridHelper(
+let gridHelper = new THREE.GridHelper(
   boardWidth,
   settings.columns,
   colors.grid,
@@ -136,6 +522,13 @@ const gridHelper = new THREE.GridHelper(
 );
 gridHelper.position.y = 0.001;
 scene.add(gridHelper);
+
+const obstaclesGroup = new THREE.Group();
+scene.add(obstaclesGroup);
+
+const resourcesGroup = new THREE.Group();
+scene.add(resourcesGroup);
+const resourceMeshes = new Map<string, THREE.Mesh>();
 
 const snakeGeometry = new THREE.BoxGeometry(
   settings.tileSize * 0.9,
@@ -170,7 +563,17 @@ let snake: Cell[] = [];
 let apple: Cell = { x: 0, y: 0 };
 let gameState: GameState = "idle";
 let score = 0;
+let lives = baseLives;
+let currentLevelIndex = 0;
+let activeLevel: LevelDefinition = levels[0]!;
+let activeResources: ActiveResource[] = [];
+let levelProgress = {
+  applesCollected: 0,
+  mandatoryCollected: 0,
+  mandatoryTotal: activeLevel.resources.filter((res) => res.mandatory).length,
+};
 
+let slowEffectRemainingMs = 0;
 let physicsWorld: World | null = null;
 let physicsBodies: Body[] = [];
 let explosionTimeoutId: number | null = null;
@@ -182,7 +585,8 @@ function setGameState(next: GameState): void {
   gameState = next;
   statusLabel.textContent = stateLabelByState[next];
   const paused = next === "paused";
-  pauseButton.disabled = next === "idle" || next === "exploding";
+  const canPause = next === "playing" || paused;
+  pauseButton.disabled = !canPause;
   pauseButton.textContent = paused ? "Продолжить" : "Пауза";
   pauseButton.setAttribute("aria-pressed", paused ? "true" : "false");
 }
@@ -191,22 +595,109 @@ function updateScoreDisplay(): void {
   scoreValue.textContent = score.toString();
 }
 
-function showStartMenu(): void {
-  menuTitle.textContent = "Змейка";
-  menuSubtitle.textContent = "Нажмите старт, чтобы начать партию";
-  menuAction.textContent = "Начать игру";
-  menu.classList.remove("hidden");
+function updateLevelDisplay(): void {
+  levelValue.textContent = `${currentLevelIndex + 1} / ${levels.length} · ${
+    activeLevel.name
+  }`;
 }
 
-function showGameOverMenu(): void {
-  menuTitle.textContent = "Поражение";
-  menuSubtitle.textContent = "Змейка врезалась. Попробуйте снова!";
-  menuAction.textContent = "Начать заново";
+function updateGoalDisplay(): void {
+  const goalParts = [
+    `Яблоки ${levelProgress.applesCollected}/${activeLevel.appleGoal}`,
+  ];
+  if (levelProgress.mandatoryTotal > 0) {
+    goalParts.push(
+      `Артефакты ${levelProgress.mandatoryCollected}/${levelProgress.mandatoryTotal}`,
+    );
+  }
+  goalValue.textContent = goalParts.join(" · ");
+}
+
+function updateLivesDisplay(): void {
+  livesValue.textContent = lives.toString();
+}
+
+function updateHud(): void {
+  updateScoreDisplay();
+  updateLevelDisplay();
+  updateGoalDisplay();
+  updateLivesDisplay();
+}
+
+function bindMenuAction(action: () => void): void {
+  menuActionHandler = action;
+}
+
+function showMenu(config: {
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  onAction: () => void;
+}): void {
+  menuTitle.textContent = config.title;
+  menuSubtitle.textContent = config.subtitle;
+  menuAction.textContent = config.actionLabel;
+  bindMenuAction(config.onAction);
   menu.classList.remove("hidden");
 }
 
 function hideMenu(): void {
   menu.classList.add("hidden");
+  menuActionHandler = null;
+}
+
+function showStartMenu(): void {
+  showMenu({
+    title: "Змейка: Кампания",
+    subtitle: "Соберите яблоки и артефакты, пройдя 10 уровней.",
+    actionLabel: "Начать игру",
+    onAction: startNewGame,
+  });
+}
+
+function showGameOverMenu(): void {
+  showMenu({
+    title: "Поражение",
+    subtitle: "Жизней не осталось. Сброс прогресса кампании.",
+    actionLabel: "Начать заново",
+    onAction: startNewGame,
+  });
+}
+
+function showLifeLostMenu(): void {
+  showMenu({
+    title: "Жизнь потеряна",
+    subtitle: `Осталось жизней: ${lives}. Уровень будет перезапущен.`,
+    actionLabel: "Продолжить уровень",
+    onAction: () => {
+      restartCurrentLevel();
+    },
+  });
+}
+
+function showLevelCompleteMenu(): void {
+  const nextLevel = levels[currentLevelIndex + 1];
+  if (!nextLevel) {
+    showCampaignCompleteMenu();
+    return;
+  }
+  showMenu({
+    title: `Уровень ${currentLevelIndex + 1} пройден`,
+    subtitle: `Далее: ${nextLevel.name}. Осталось уровней: ${
+      levels.length - currentLevelIndex - 1
+    }`,
+    actionLabel: "Следующий уровень",
+    onAction: () => startLevel(currentLevelIndex + 1),
+  });
+}
+
+function showCampaignCompleteMenu(): void {
+  showMenu({
+    title: "Кампания пройдена",
+    subtitle: "Все артефакты собраны. Можно начать новый забег.",
+    actionLabel: "Играть снова",
+    onAction: startNewGame,
+  });
 }
 
 function gridToWorld(cell: Cell): THREE.Vector3 {
@@ -225,6 +716,34 @@ function resizeRenderer(): void {
   }
 }
 
+function recalcBoardDimensions(): void {
+  boardWidth = settings.columns * settings.tileSize;
+  boardDepth = settings.rows * settings.tileSize;
+}
+
+function updateFloorGeometry(): void {
+  floorMesh.geometry.dispose();
+  floorMesh.geometry = new THREE.BoxGeometry(
+    boardWidth + 1,
+    0.4,
+    boardDepth + 1,
+  );
+  floorMesh.position.set(0, -0.2, 0);
+}
+
+function rebuildGridHelper(): void {
+  scene.remove(gridHelper);
+  gridHelper.geometry.dispose();
+  gridHelper = new THREE.GridHelper(
+    boardWidth,
+    settings.columns,
+    colors.grid,
+    colors.grid,
+  );
+  gridHelper.position.y = 0.001;
+  scene.add(gridHelper);
+}
+
 function isOnSnake(cell: Cell): boolean {
   return snake.some((segment) => segment.x === cell.x && segment.y === cell.y);
 }
@@ -238,12 +757,31 @@ function isOutOfBounds(cell: Cell): boolean {
   );
 }
 
+function isObstacleCell(cell: Cell): boolean {
+  return activeLevel.obstacles.some(
+    (obstacle) => obstacle.cell.x === cell.x && obstacle.cell.y === cell.y,
+  );
+}
+
+function getActiveResourceAtCell(cell: Cell): ActiveResource | undefined {
+  return activeResources.find(
+    (resource) =>
+      !resource.collected &&
+      resource.cell.x === cell.x &&
+      resource.cell.y === cell.y,
+  );
+}
+
+function isCellFreeForSpawn(cell: Cell): boolean {
+  return !isOnSnake(cell) && !isObstacleCell(cell) && !getActiveResourceAtCell(cell);
+}
+
 function spawnApple(): Cell {
   const freeCells: Cell[] = [];
   for (let y = 0; y < settings.rows; y += 1) {
     for (let x = 0; x < settings.columns; x += 1) {
       const candidate = { x, y };
-      if (!isOnSnake(candidate)) {
+      if (isCellFreeForSpawn(candidate)) {
         freeCells.push(candidate);
       }
     }
@@ -253,6 +791,68 @@ function spawnApple(): Cell {
   }
   const pick = Math.floor(Math.random() * freeCells.length);
   return freeCells[pick] ?? { x: 0, y: 0 };
+}
+
+function rebuildObstacleMeshes(): void {
+  obstaclesGroup.clear();
+  activeLevel.obstacles.forEach((obstacle) => {
+    const geometry = new THREE.BoxGeometry(
+      settings.tileSize * 0.95,
+      settings.tileSize,
+      settings.tileSize * 0.95,
+    );
+    const material = new THREE.MeshStandardMaterial({
+      color: obstacleColors[obstacle.type],
+      roughness: 0.85,
+      metalness: 0.1,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    const worldPos = gridToWorld(obstacle.cell);
+    mesh.position.copy(worldPos);
+    obstaclesGroup.add(mesh);
+  });
+}
+
+function createResourceGeometry(type: ResourceType): THREE.BufferGeometry {
+  if (type === "artifact") {
+    return new THREE.OctahedronGeometry(settings.tileSize * 0.36);
+  }
+  if (type === "extraLife") {
+    return new THREE.TorusGeometry(
+      settings.tileSize * 0.32,
+      settings.tileSize * 0.09,
+      12,
+      32,
+    );
+  }
+  return new THREE.DodecahedronGeometry(settings.tileSize * 0.33);
+}
+
+function rebuildResourceMeshes(): void {
+  resourceMeshes.forEach((mesh) => {
+    resourcesGroup.remove(mesh);
+  });
+  resourceMeshes.clear();
+
+  activeResources.forEach((resource) => {
+    if (resource.collected) {
+      return;
+    }
+    const geometry = createResourceGeometry(resource.type);
+    const material = new THREE.MeshStandardMaterial({
+      color: resourceColors[resource.type],
+      emissive: new THREE.Color(resourceColors[resource.type]).multiplyScalar(0.18),
+      metalness: 0.2,
+      roughness: 0.35,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.position.copy(gridToWorld(resource.cell));
+    resourcesGroup.add(mesh);
+    resourceMeshes.set(resource.id, mesh);
+  });
 }
 
 function ensureSnakeMeshes(): void {
@@ -294,37 +894,108 @@ function updateAppleMesh(): void {
   appleMesh.position.copy(worldPos);
 }
 
-function resetRound(): void {
+function buildStartingSnake(): Cell[] {
+  const headOptions: Cell[] = [
+    { x: Math.floor(settings.columns / 2), y: Math.floor(settings.rows / 2) },
+    { x: Math.floor(settings.columns / 2), y: Math.floor(settings.rows / 2) - 1 },
+    { x: Math.floor(settings.columns / 2) - 1, y: Math.floor(settings.rows / 2) },
+  ];
+  const directionsToTry: Cell[] = [
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+  ];
+
+  for (const head of headOptions) {
+    for (const dir of directionsToTry) {
+      const body = { x: head.x + dir.x, y: head.y + dir.y };
+      const tail = { x: body.x + dir.x, y: body.y + dir.y };
+      if (
+        isOutOfBounds(head) ||
+        isOutOfBounds(body) ||
+        isOutOfBounds(tail) ||
+        !isCellFreeForSpawn(head) ||
+        !isCellFreeForSpawn(body) ||
+        !isCellFreeForSpawn(tail)
+      ) {
+        continue;
+      }
+      return [head, body, tail];
+    }
+  }
+
+  return [
+    { x: 1, y: 1 },
+    { x: 0, y: 1 },
+    { x: 0, y: 0 },
+  ];
+}
+
+function resetLevel(): void {
   destroyPhysicsWorld();
   direction = { x: 1, y: 0 };
   nextDirection = { x: 1, y: 0 };
-  const startX = Math.floor(settings.columns / 2);
-  const startY = Math.floor(settings.rows / 2);
-  snake = [
-    { x: startX, y: startY },
-    { x: startX - 1, y: startY },
-    { x: startX - 2, y: startY },
-  ];
-  apple = spawnApple();
   tickAccumulatorMs = 0;
+  slowEffectRemainingMs = 0;
+
+  activeResources = activeLevel.resources.map((resource) => ({
+    ...resource,
+    collected: false,
+  }));
+  levelProgress = {
+    applesCollected: 0,
+    mandatoryCollected: 0,
+    mandatoryTotal: activeResources.filter((res) => res.mandatory).length,
+  };
+
+  rebuildObstacleMeshes();
+  rebuildResourceMeshes();
+
+  snake = buildStartingSnake();
+  apple = spawnApple();
   updateSnakeMeshesFromGrid();
   updateAppleMesh();
+  updateHud();
 }
 
-function cancelExplosionTimeout(): void {
-  if (explosionTimeoutId !== null) {
-    window.clearTimeout(explosionTimeoutId);
-    explosionTimeoutId = null;
+function applyLevelConfig(level: LevelDefinition): void {
+  settings.columns = level.columns;
+  settings.rows = level.rows;
+  settings.tickMs = level.tickMs ?? baseTickMs;
+  recalcBoardDimensions();
+  updateFloorGeometry();
+  rebuildGridHelper();
+  slowEffectRemainingMs = 0;
+}
+
+function startLevel(levelIndex: number): void {
+  const nextLevel = levels[levelIndex];
+  if (!nextLevel) {
+    return;
   }
+  currentLevelIndex = levelIndex;
+  activeLevel = nextLevel;
+  applyLevelConfig(activeLevel);
+  resetLevel();
+  hideMenu();
+  setGameState("playing");
+}
+
+function restartCurrentLevel(): void {
+  applyLevelConfig(activeLevel);
+  resetLevel();
+  hideMenu();
+  setGameState("playing");
 }
 
 function startNewGame(): void {
   cancelExplosionTimeout();
   score = 0;
-  updateScoreDisplay();
-  resetRound();
-  hideMenu();
-  setGameState("playing");
+  lives = baseLives;
+  currentLevelIndex = 0;
+  activeLevel = levels[0]!;
+  startLevel(0);
 }
 
 function tryChangeDirection(requested: Cell): void {
@@ -351,51 +1022,43 @@ function handleResize(): void {
   renderer.render(scene, camera);
 }
 
-window.addEventListener("resize", handleResize);
-window.addEventListener("keydown", (event) => {
-  if (event.key === " " || event.key === "Spacebar") {
-    event.preventDefault();
-    if (gameState === "playing") {
-      setGameState("paused");
-    } else if (gameState === "paused") {
-      setGameState("playing");
+function handleResourcePickup(resource: ActiveResource): void {
+  resource.collected = true;
+  const mesh = resourceMeshes.get(resource.id);
+  if (mesh) {
+    resourcesGroup.remove(mesh);
+    resourceMeshes.delete(resource.id);
+  }
+
+  if (resource.type === "artifact") {
+    levelProgress.mandatoryCollected += 1;
+    score += 2;
+  } else if (resource.type === "extraLife") {
+    lives += 1;
+  } else if (resource.type === "timeSlow") {
+    slowEffectRemainingMs = slowEffectDurationMs;
+  }
+  updateScoreDisplay();
+  updateLivesDisplay();
+  updateGoalDisplay();
+}
+
+function checkVictory(): void {
+  if (
+    levelProgress.applesCollected >= activeLevel.appleGoal &&
+    levelProgress.mandatoryCollected >= levelProgress.mandatoryTotal
+  ) {
+    tickAccumulatorMs = 0;
+    slowEffectRemainingMs = 0;
+    if (currentLevelIndex >= levels.length - 1) {
+      setGameState("campaignComplete");
+      showCampaignCompleteMenu();
+    } else {
+      setGameState("levelComplete");
+      showLevelCompleteMenu();
     }
-    return;
   }
-
-  if (event.key === "Enter") {
-    if (gameState === "idle") {
-      event.preventDefault();
-      startNewGame();
-      return;
-    }
-    if (gameState === "exploding") {
-      event.preventDefault();
-      finishExplosion();
-      return;
-    }
-  }
-
-  const requested = directionsByKey[event.key];
-  if (!requested) {
-    return;
-  }
-
-  event.preventDefault();
-  tryChangeDirection(requested);
-});
-
-menuAction.addEventListener("click", () => {
-  startNewGame();
-});
-
-pauseButton.addEventListener("click", () => {
-  if (gameState === "playing") {
-    setGameState("paused");
-  } else if (gameState === "paused") {
-    setGameState("playing");
-  }
-});
+}
 
 function stepGame(): void {
   if (gameState !== "playing") {
@@ -408,23 +1071,35 @@ function stepGame(): void {
   }
   const newHead: Cell = { x: head.x + direction.x, y: head.y + direction.y };
 
-  if (isOutOfBounds(newHead) || isOnSnake(newHead)) {
+  if (isOutOfBounds(newHead) || isObstacleCell(newHead) || isOnSnake(newHead)) {
     triggerDeath();
     return;
   }
 
+  const resourceHit = getActiveResourceAtCell(newHead);
   const ateApple = newHead.x === apple.x && newHead.y === apple.y;
+
   snake = [newHead, ...snake];
-  if (!ateApple) {
+  const grew = ateApple || resourceHit?.type === "artifact";
+  if (!grew) {
     snake.pop();
-  } else {
+  }
+
+  if (ateApple) {
     score += 1;
-    updateScoreDisplay();
+    levelProgress.applesCollected += 1;
     apple = spawnApple();
     updateAppleMesh();
+    updateScoreDisplay();
+    updateGoalDisplay();
+  }
+
+  if (resourceHit) {
+    handleResourcePickup(resourceHit);
   }
 
   updateSnakeMeshesFromGrid();
+  checkVictory();
 }
 
 function triggerDeath(): void {
@@ -432,6 +1107,7 @@ function triggerDeath(): void {
     return;
   }
   setGameState("exploding");
+  slowEffectRemainingMs = 0;
   cancelExplosionTimeout();
   startExplosionPhysics();
   explosionTimeoutId = window.setTimeout(() => {
@@ -441,11 +1117,26 @@ function triggerDeath(): void {
   }, 2600);
 }
 
+function cancelExplosionTimeout(): void {
+  if (explosionTimeoutId !== null) {
+    window.clearTimeout(explosionTimeoutId);
+    explosionTimeoutId = null;
+  }
+}
+
 function finishExplosion(): void {
   cancelExplosionTimeout();
-  resetRound();
+  destroyPhysicsWorld();
+  lives = Math.max(0, lives - 1);
+  updateLivesDisplay();
+  resetLevel();
   setGameState("idle");
-  showGameOverMenu();
+
+  if (lives > 0) {
+    showLifeLostMenu();
+  } else {
+    showGameOverMenu();
+  }
 }
 
 function startExplosionPhysics(): void {
@@ -528,15 +1219,54 @@ function stepPhysics(deltaSeconds: number): void {
   });
 }
 
+function getHeadPosition(): THREE.Vector3 {
+  const headMesh = snakeMeshes[0];
+  if (physicsWorld && headMesh) {
+    return headMesh.position.clone();
+  }
+  const head = snake[0];
+  return head ? gridToWorld(head) : new THREE.Vector3(0, settings.tileSize * 0.5, 0);
+}
+
+function updateCameraFollow(deltaSeconds: number): void {
+  const headPos = getHeadPosition();
+  const longestSide = Math.max(settings.columns, settings.rows) * settings.tileSize;
+  const distance = Math.max(6, longestSide * 0.55);
+  const height = Math.max(8, longestSide * 0.75);
+  const lateral = Math.max(4, longestSide * 0.35);
+  const desiredPosition = new THREE.Vector3(
+    headPos.x + lateral,
+    headPos.y + height,
+    headPos.z + distance,
+  );
+  const followStrength = THREE.MathUtils.clamp(0.08 + deltaSeconds * 2, 0.08, 0.18);
+  camera.position.lerp(desiredPosition, followStrength);
+  camera.lookAt(headPos.x, headPos.y, headPos.z);
+}
+
+function getCurrentTickMs(): number {
+  if (slowEffectRemainingMs > 0) {
+    return settings.tickMs * slowEffectMultiplier;
+  }
+  return settings.tickMs;
+}
+
 function animate(now: number): void {
   const deltaMs = now - lastFrame;
   lastFrame = now;
+  if (slowEffectRemainingMs > 0) {
+    slowEffectRemainingMs = Math.max(0, slowEffectRemainingMs - deltaMs);
+  }
 
+  const tickMs = getCurrentTickMs();
   if (gameState === "playing") {
     tickAccumulatorMs += deltaMs;
-    while (tickAccumulatorMs >= settings.tickMs) {
-      tickAccumulatorMs -= settings.tickMs;
+    while (tickAccumulatorMs >= tickMs) {
+      tickAccumulatorMs -= tickMs;
       stepGame();
+      if (gameState !== "playing") {
+        break;
+      }
     }
   } else {
     tickAccumulatorMs = 0;
@@ -544,12 +1274,61 @@ function animate(now: number): void {
 
   stepPhysics(deltaMs / 1000);
   resizeRenderer();
+  updateCameraFollow(deltaMs / 1000);
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 
-updateScoreDisplay();
-resetRound();
+window.addEventListener("resize", handleResize);
+window.addEventListener("keydown", (event) => {
+  if (event.key === " " || event.key === "Spacebar") {
+    event.preventDefault();
+    if (gameState === "playing") {
+      setGameState("paused");
+    } else if (gameState === "paused") {
+      setGameState("playing");
+    }
+    return;
+  }
+
+  if (event.key === "Enter") {
+    if (gameState === "exploding") {
+      event.preventDefault();
+      finishExplosion();
+      return;
+    }
+    if (!menu.classList.contains("hidden") && menuActionHandler) {
+      event.preventDefault();
+      menuActionHandler();
+      return;
+    }
+  }
+
+  const requested = directionsByKey[event.key];
+  if (!requested) {
+    return;
+  }
+
+  event.preventDefault();
+  tryChangeDirection(requested);
+});
+
+menuAction.addEventListener("click", () => {
+  if (menuActionHandler) {
+    menuActionHandler();
+  }
+});
+
+pauseButton.addEventListener("click", () => {
+  if (gameState === "playing") {
+    setGameState("paused");
+  } else if (gameState === "paused") {
+    setGameState("playing");
+  }
+});
+
+applyLevelConfig(activeLevel);
+resetLevel();
 showStartMenu();
 setGameState("idle");
 resizeRenderer();
