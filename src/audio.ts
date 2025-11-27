@@ -1,5 +1,12 @@
 type SoundKey = "ambient" | "jump" | "burrow" | "pickup" | "explosion";
-type GamePhase = "idle" | "playing" | "paused" | "exploding" | "transition";
+type GamePhase =
+  | "idle"
+  | "playing"
+  | "paused"
+  | "exploding"
+  | "transition"
+  | "levelComplete"
+  | "campaignComplete";
 
 type RenderCb = (ctx: OfflineAudioContext) => void;
 

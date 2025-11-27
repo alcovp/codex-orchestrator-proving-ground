@@ -691,7 +691,7 @@ let levelProgress = {
   mandatoryCollected: 0,
   mandatoryTotal: activeLevel.resources.filter((res) => res.mandatory).length,
 };
-let apple: Cell = { x: 0, y: 0 };
+let apple: Cell = { x: -1, y: -1 };
 type PickupEntity = { pickup: Pickup; mesh: THREE.Mesh };
 let pickupEntities: PickupEntity[] = [];
 let queuedManeuver: ManeuverType | null = null;
@@ -939,11 +939,28 @@ function getActiveResourceAtCell(cell: Cell): ActiveResource | undefined {
   );
 }
 
+function pickupAtCell(cell: Cell): PickupEntity | undefined {
+  return pickupEntities.find(
+    (entity) =>
+      entity.pickup.cell.x === cell.x && entity.pickup.cell.y === cell.y,
+  );
+}
+
+function isAppleCell(cell: Cell): boolean {
+  return apple.x === cell.x && apple.y === cell.y;
+}
+
 function isCellFreeForSpawn(cell: Cell): boolean {
   if (isOutOfBounds(cell)) {
     return false;
   }
-  return !isOnSnake(cell) && !isObstacleCell(cell) && !getActiveResourceAtCell(cell);
+  return (
+    !isOnSnake(cell) &&
+    !isObstacleCell(cell) &&
+    !getActiveResourceAtCell(cell) &&
+    !pickupAtCell(cell) &&
+    !isAppleCell(cell)
+  );
 }
 
 function findFreeCells(): Cell[] {
@@ -973,7 +990,7 @@ function spawnApple(): Cell {
     return { x: Math.floor(settings.columns / 2), y: Math.floor(settings.rows / 2) };
   }
   const pick = Math.floor(Math.random() * freeCells.length);
-  return freeCells[pick] ?? freeCells[0];
+  return freeCells[pick] ?? freeCells[0]!;
 }
 
 function spawnPickup(type: PickupType): Pickup | null {
@@ -982,7 +999,7 @@ function spawnPickup(type: PickupType): Pickup | null {
     return null;
   }
   const pick = Math.floor(Math.random() * freeCells.length);
-  const cell = freeCells[pick] ?? freeCells[0];
+  const cell = freeCells[pick] ?? freeCells[0]!;
   const pickup: Pickup = { type, cell, spawnedAt: performance.now() };
   const mesh = new THREE.Mesh(
     pickupGeometries[type],
@@ -1179,6 +1196,8 @@ function resetLevel(): void {
   snake = [];
   tickAccumulatorMs = 0;
   slowEffectRemainingMs = 0;
+  clearPickups();
+  apple = { x: -1, y: -1 };
 
   activeResources = activeLevel.resources.map((resource) => ({
     ...resource,
