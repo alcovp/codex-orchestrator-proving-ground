@@ -8,6 +8,7 @@ import {
   Vec3,
   World,
 } from "cannon-es";
+import { GameAudio } from "./audio";
 
 type Cell = { x: number; y: number };
 type GameState =
@@ -481,6 +482,20 @@ const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), hudMaterial);
 hudMesh.position.set(0.5, 0.5, 0);
 hudMesh.renderOrder = 5;
 hudScene.add(hudMesh);
+const audio = new GameAudio();
+
+function requestAudioUnlock(): void {
+  void audio.unlockFromUserGesture();
+}
+
+function registerAudioUnlockListeners(): void {
+  const unlock = (): void => {
+    requestAudioUnlock();
+  };
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("touchstart", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+}
 
 let overlayMode: OverlayMode = "start";
 let overlayTitle = "Змейка";
@@ -498,6 +513,8 @@ const stateLabelByState: Record<GameState, string> = {
   levelComplete: "Уровень пройден",
   campaignComplete: "Все уровни",
 };
+
+registerAudioUnlockListeners();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio ?? 1, 2));
@@ -703,6 +720,7 @@ function setGameState(next: GameState): void {
     overlayMode = "start";
   }
   markHudDirty();
+  audio.onStateChange(next);
 }
 
 function updateHud(): void {
@@ -1149,7 +1167,6 @@ function buildStartingSnake(): Cell[] {
     { x: 0, y: 0 },
   ];
 }
-}
 
 function resetLevel(): void {
   destroyPhysicsWorld();
@@ -1214,6 +1231,8 @@ function restartCurrentLevel(): void {
 }
 
 function startNewGame(): void {
+  requestAudioUnlock();
+  audio.onLevelTransition();
   cancelExplosionTimeout();
   score = 0;
   lives = baseLives;
@@ -1444,6 +1463,7 @@ function stepGame(): void {
     levelProgress.applesCollected += 1;
     apple = spawnApple();
     updateAppleMesh();
+    void audio.playPickup();
   }
 
   if (resourceHit) {
@@ -1470,6 +1490,7 @@ function triggerDeath(): void {
   }
   setGameState("exploding");
   slowEffectRemainingMs = 0;
+  void audio.playExplosion();
   cancelExplosionTimeout();
   startExplosionPhysics();
   explosionTimeoutId = window.setTimeout(() => {
