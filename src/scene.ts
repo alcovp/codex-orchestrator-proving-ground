@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
-import type { Point, Settings } from "./types";
+import type { Enemy, Point, Settings } from "./types";
 
 type SceneApi = {
   render(): void;
   updateSnake(segments: Point[]): void;
   updateApple(position: Point): void;
+  updateEnemies(enemies: Enemy[]): void;
   updateScore(score: number): void;
   startExplosion(segments: Point[]): void;
   stopExplosion(): void;
@@ -250,6 +251,20 @@ export function createScene3D(
   let explosionActive = false;
   let lastPhysicsStep = performance.now();
 
+  const enemyMeshes: THREE.Mesh[] = [];
+  const enemyGeometry = new THREE.BoxGeometry(
+    settings.cellSize * 0.8,
+    settings.cellSize * 0.8,
+    settings.cellSize * 0.8,
+  );
+  const enemyMaterial = new THREE.MeshStandardMaterial({
+    color: "#f97316",
+    emissive: "#7c2d12",
+    emissiveIntensity: 0.4,
+    roughness: 0.4,
+    metalness: 0.1,
+  });
+
   const appleMesh = new THREE.Mesh(
     new THREE.SphereGeometry(settings.cellSize * 0.4, 28, 18),
     new THREE.MeshStandardMaterial({
@@ -295,6 +310,32 @@ export function createScene3D(
       mesh.quaternion.identity();
       mesh.position.copy(world);
       mesh.material = i === 0 ? snakeHeadMaterial : snakeBodyMaterial;
+    }
+  }
+
+  function updateEnemies(enemies: Enemy[]): void {
+    while (enemyMeshes.length < enemies.length) {
+      const mesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      enemyMeshes.push(mesh);
+    }
+    while (enemyMeshes.length > enemies.length) {
+      const mesh = enemyMeshes.pop();
+      if (mesh) {
+        scene.remove(mesh);
+      }
+    }
+    for (let i = 0; i < enemies.length; i += 1) {
+      const enemy = enemies[i];
+      const mesh = enemyMeshes[i];
+      if (!enemy || !mesh) {
+        continue;
+      }
+      const world = cellToWorld(enemy.position);
+      mesh.position.copy(world);
+      mesh.quaternion.identity();
     }
   }
 
@@ -429,6 +470,7 @@ export function createScene3D(
     render,
     updateSnake,
     updateApple,
+    updateEnemies,
     updateScore,
     startExplosion,
     stopExplosion,

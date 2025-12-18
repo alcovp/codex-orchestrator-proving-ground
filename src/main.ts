@@ -24,6 +24,7 @@ function tick(): void {
   if (result.status === "dead") {
     isExploding = true;
     scene.startExplosion(result.segments);
+    scene.updateEnemies(game.enemies);
     if (explosionTimeoutId !== null) {
       window.clearTimeout(explosionTimeoutId);
     }
@@ -33,12 +34,14 @@ function tick(): void {
       scene.updateSnake(game.snake);
       scene.updateApple(game.apple);
       scene.updateScore(game.score);
+      scene.updateEnemies(game.enemies);
       isExploding = false;
     }, explosionDurationMs);
     return;
   }
   scene.updateSnake(game.snake);
   scene.updateApple(game.apple);
+  scene.updateEnemies(game.enemies);
   if (result.ateApple) {
     scene.updateScore(game.score);
   }
@@ -53,6 +56,7 @@ game.reset();
 scene.updateSnake(game.snake);
 scene.updateApple(game.apple);
 scene.updateScore(game.score);
+scene.updateEnemies(game.enemies);
 window.requestAnimationFrame(renderLoop);
 window.setInterval(tick, settings.tickMs);
 window.addEventListener("resize", () => scene.resize());

@@ -6,3 +6,7 @@ export type Settings = {
   cellSize: number;
   tickMs: number;
 };
+
+export type Enemy = {
+  position: Point;
+};

@@ -1,4 +1,5 @@
-import type { Point, Settings } from "./types";
+import { EnemyManager } from "./enemies";
+import type { Enemy, Point, Settings } from "./types";
 
 export type StepResult =
   | {
@@ -17,8 +18,14 @@ export class SnakeGameState {
   private nextDirection: Point = { x: 1, y: 0 };
   score = 0;
 
+  private readonly enemyManager: EnemyManager;
   constructor(private readonly settings: Settings) {
+    this.enemyManager = new EnemyManager(settings, 5);
     this.reset();
+  }
+
+  get enemies(): Enemy[] {
+    return this.enemyManager.getAll();
   }
 
   reset(): void {
@@ -27,6 +34,7 @@ export class SnakeGameState {
     this.direction = { x: 1, y: 0 };
     this.nextDirection = { x: 1, y: 0 };
     this.score = 0;
+    this.enemyManager.reset();
     this.snake = [
       { x: startX, y: startY },
       { x: startX - 1, y: startY },
@@ -63,6 +71,12 @@ export class SnakeGameState {
         segments: this.snake.map((segment) => ({ ...segment })),
       };
     }
+    if (this.enemyManager.isOnEnemy(newHead)) {
+      return {
+        status: "dead",
+        segments: this.snake.map((segment) => ({ ...segment })),
+      };
+    }
 
     const ateApple = newHead.x === this.apple.x && newHead.y === this.apple.y;
     this.snake = [newHead, ...this.snake];
@@ -71,6 +85,21 @@ export class SnakeGameState {
     } else {
       this.score += 1;
       this.apple = this.spawnApple();
+      this.enemyManager.trySpawn(this.score, this.snake, this.apple);
+    }
+
+    const headAfterMove = this.snake[0];
+    if (!headAfterMove) {
+      return { status: "alive", ateApple };
+    }
+
+    this.enemyManager.tick(headAfterMove, this.snake);
+
+    if (this.enemyManager.isOnEnemy(headAfterMove)) {
+      return {
+        status: "dead",
+        segments: this.snake.map((segment) => ({ ...segment })),
+      };
     }
 
     return { status: "alive", ateApple };
@@ -81,7 +110,7 @@ export class SnakeGameState {
     for (let y = 0; y < this.settings.rows; y += 1) {
       for (let x = 0; x < this.settings.columns; x += 1) {
         const cell = { x, y };
-        if (!this.isOnSnake(cell)) {
+        if (!this.isOnSnake(cell) && !this.enemyManager.isOnEnemy(cell)) {
           freeCells.push(cell);
         }
       }
