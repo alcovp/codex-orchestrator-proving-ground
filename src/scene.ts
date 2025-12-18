@@ -37,13 +37,15 @@ export function createScene3D(
   const boardCenter = new THREE.Vector3(0, settings.cellSize * 0.2, 0);
 
   const cameraRange = Math.max(boardWidth, boardDepth);
+  const cameraHeight = cameraRange * 0.9;
+  const cameraForwardOffset = boardDepth * 0.65;
   const camera = new THREE.PerspectiveCamera(
     55,
     canvas.clientWidth / canvas.clientHeight,
     0.1,
     cameraRange * 4,
   );
-  camera.position.set(cameraRange * 0.6, cameraRange * 0.9, cameraRange * 0.65);
+  camera.position.set(0, cameraHeight, cameraForwardOffset);
   camera.lookAt(boardCenter);
   scene.add(camera);
 
@@ -51,7 +53,7 @@ export function createScene3D(
   scene.add(ambient);
 
   const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
-  keyLight.position.set(boardWidth * 0.35, cameraRange * 1.2, boardDepth * 0.35);
+  keyLight.position.set(0, cameraRange * 1.2, boardDepth * 0.25);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.set(2048, 2048);
   const shadowRange = cameraRange;

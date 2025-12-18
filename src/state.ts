@@ -20,7 +20,7 @@ export class SnakeGameState {
 
   private readonly enemyManager: EnemyManager;
   constructor(private readonly settings: Settings) {
-    this.enemyManager = new EnemyManager(settings, 5);
+    this.enemyManager = new EnemyManager(settings, 10);
     this.reset();
   }
 

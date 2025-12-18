@@ -5,8 +5,9 @@ export class EnemyManager {
   private nextSpawnScore = 5;
   private moveCooldown: number;
   private readonly moveInterval: number;
+  private readonly minSpawnDistance = 4;
 
-  constructor(private readonly settings: Settings, moveIntervalTicks = 5) {
+  constructor(private readonly settings: Settings, moveIntervalTicks = 10) {
     this.moveInterval = moveIntervalTicks;
     this.moveCooldown = moveIntervalTicks;
   }
@@ -62,11 +63,16 @@ export class EnemyManager {
         }
       }
     }
-    if (freeCells.length === 0) {
+    const safeCells = freeCells.filter(
+      (cell) =>
+        this.minDistanceToSnake(cell, snake) >= this.minSpawnDistance,
+    );
+    const pool = safeCells.length > 0 ? safeCells : freeCells;
+    if (pool.length === 0) {
       return;
     }
-    const pick = Math.floor(Math.random() * freeCells.length);
-    const chosen = freeCells[pick] ?? freeCells[0];
+    const pick = Math.floor(Math.random() * pool.length);
+    const chosen = pool[pick] ?? pool[0];
     if (!chosen) {
       return;
     }
@@ -210,5 +216,24 @@ export class EnemyManager {
 
   private samePoint(a: Point, b: Point): boolean {
     return a.x === b.x && a.y === b.y;
+  }
+
+  private minDistanceToSnake(point: Point, snake: Point[]): number {
+    let min = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < snake.length; i += 1) {
+      const segment = snake[i];
+      if (!segment) {
+        continue;
+      }
+      const d = this.manhattanDistance(point, segment);
+      if (d < min) {
+        min = d;
+      }
+    }
+    return min;
+  }
+
+  private manhattanDistance(a: Point, b: Point): number {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
   }
 }
