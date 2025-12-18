@@ -94,10 +94,13 @@ export function createScene3D(
   const hudCanvas = document.createElement("canvas");
   hudCanvas.width = 1024;
   hudCanvas.height = 256;
-  const hudContext = hudCanvas.getContext("2d");
-  if (!hudContext) {
-    throw new Error("Не удалось создать контекст HUD");
-  }
+  const hudContext = (() => {
+    const context = hudCanvas.getContext("2d");
+    if (!context) {
+      throw new Error("Не удалось создать контекст HUD");
+    }
+    return context;
+  })();
   const hudTexture = new THREE.CanvasTexture(hudCanvas);
   hudTexture.minFilter = THREE.LinearFilter;
   hudTexture.magFilter = THREE.LinearFilter;
