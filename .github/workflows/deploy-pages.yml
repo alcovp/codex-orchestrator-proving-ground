@@ -6,6 +6,7 @@ on:
       - master
       - orchestrator
       - codex-solo
+      - remote-plane
   workflow_dispatch:
 
 permissions:
