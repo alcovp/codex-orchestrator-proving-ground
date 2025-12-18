@@ -171,25 +171,17 @@ export function createScene3D(
     hudContext.fill();
     hudContext.shadowBlur = 0;
 
-    hudContext.fillStyle = "rgba(255, 255, 255, 0.08)";
-    hudContext.fillRect(34, h * 0.42, w - 68, 2);
-
-    hudContext.fillStyle = "#e4edff";
-    hudContext.font = "700 72px 'Segoe UI', system-ui, sans-serif";
-    hudContext.textBaseline = "middle";
+    hudContext.textBaseline = "top";
     hudContext.textAlign = "left";
-    hudContext.fillText("Змейка", 64, h * 0.35);
 
     const scoreLabel = `Счёт: ${score}`;
     hudContext.fillStyle = "#86f5a3";
     hudContext.font = "700 96px 'Segoe UI', system-ui, sans-serif";
-    hudContext.textAlign = "right";
-    hudContext.fillText(scoreLabel, w - 72, h * 0.65);
+    hudContext.fillText(scoreLabel, 64, 44);
 
-    hudContext.fillStyle = "rgba(216, 227, 245, 0.78)";
+    hudContext.fillStyle = "rgba(216, 227, 245, 0.88)";
     hudContext.font = "400 38px 'Segoe UI', system-ui, sans-serif";
-    hudContext.textAlign = "left";
-    hudContext.fillText("Управление: стрелки", 64, h - 64);
+    hudContext.fillText("Управление: стрелки", 64, 152);
 
     hudTexture.needsUpdate = true;
   }
@@ -433,7 +425,10 @@ export function createScene3D(
     const hudWidth = Math.min(aspect * 1.6, 1.8);
     const hudHeight = hudWidth * (hudCanvas.height / hudCanvas.width);
     hudPlane.scale.set(hudWidth, hudHeight, 1);
-    hudPlane.position.set(0, 1 - hudHeight * 0.65, 0);
+    const hudMargin = 0.05;
+    const hudX = -aspect + hudWidth * 0.5 + hudMargin;
+    const hudY = 1 - hudHeight * 0.5 - hudMargin;
+    hudPlane.position.set(hudX, hudY, 0);
   }
 
   function render(): void {
