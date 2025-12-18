@@ -32,12 +32,16 @@ function tick(): void {
       game.reset();
       scene.updateSnake(game.snake);
       scene.updateApple(game.apple);
+      scene.updateScore(game.score);
       isExploding = false;
     }, explosionDurationMs);
     return;
   }
   scene.updateSnake(game.snake);
   scene.updateApple(game.apple);
+  if (result.ateApple) {
+    scene.updateScore(game.score);
+  }
 }
 
 function renderLoop(): void {
@@ -48,6 +52,7 @@ function renderLoop(): void {
 game.reset();
 scene.updateSnake(game.snake);
 scene.updateApple(game.apple);
+scene.updateScore(game.score);
 window.requestAnimationFrame(renderLoop);
 window.setInterval(tick, settings.tickMs);
 window.addEventListener("resize", () => scene.resize());

@@ -6,6 +6,7 @@ type SceneApi = {
   render(): void;
   updateSnake(segments: Point[]): void;
   updateApple(position: Point): void;
+  updateScore(score: number): void;
   startExplosion(segments: Point[]): void;
   stopExplosion(): void;
   resize(): void;
@@ -23,6 +24,10 @@ export function createScene3D(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.autoClear = false;
+  if (scene.background instanceof THREE.Color) {
+    renderer.setClearColor(scene.background);
+  }
 
   const boardWidth = settings.columns * settings.cellSize;
   const boardDepth = settings.rows * settings.cellSize;
@@ -82,6 +87,110 @@ export function createScene3D(
   );
   grid.position.y = 0.01;
   scene.add(grid);
+
+  const hudScene = new THREE.Scene();
+  const hudCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
+
+  const hudCanvas = document.createElement("canvas");
+  hudCanvas.width = 1024;
+  hudCanvas.height = 256;
+  const hudContext = hudCanvas.getContext("2d");
+  if (!hudContext) {
+    throw new Error("Не удалось создать контекст HUD");
+  }
+  const hudTexture = new THREE.CanvasTexture(hudCanvas);
+  hudTexture.minFilter = THREE.LinearFilter;
+  hudTexture.magFilter = THREE.LinearFilter;
+  hudTexture.needsUpdate = true;
+
+  const hudMaterial = new THREE.MeshBasicMaterial({
+    map: hudTexture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const hudGeometry = new THREE.PlaneGeometry(1, 1);
+  const hudPlane = new THREE.Mesh(hudGeometry, hudMaterial);
+  hudPlane.position.set(0, 0.8, 0);
+  hudScene.add(hudPlane);
+
+  let currentScore = 0;
+
+  function drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number,
+  ): void {
+    const clampedRadius = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + clampedRadius, y);
+    ctx.lineTo(x + width - clampedRadius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + clampedRadius);
+    ctx.lineTo(x + width, y + height - clampedRadius);
+    ctx.quadraticCurveTo(
+      x + width,
+      y + height,
+      x + width - clampedRadius,
+      y + height,
+    );
+    ctx.lineTo(x + clampedRadius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - clampedRadius);
+    ctx.lineTo(x, y + clampedRadius);
+    ctx.quadraticCurveTo(x, y, x + clampedRadius, y);
+    ctx.closePath();
+  }
+
+  function paintHud(score: number): void {
+    currentScore = score;
+    const w = hudCanvas.width;
+    const h = hudCanvas.height;
+    hudContext.clearRect(0, 0, w, h);
+
+    const panelGradient = hudContext.createLinearGradient(0, 0, w, 0);
+    panelGradient.addColorStop(0, "rgba(42, 70, 110, 0.9)");
+    panelGradient.addColorStop(1, "rgba(26, 34, 52, 0.92)");
+
+    drawRoundedRect(hudContext, 26, 32, w - 52, h - 64, 28);
+    hudContext.fillStyle = panelGradient;
+    hudContext.fill();
+
+    hudContext.shadowColor = "rgba(12, 219, 126, 0.25)";
+    hudContext.shadowBlur = 24;
+    drawRoundedRect(hudContext, 34, 40, w - 68, h - 80, 24);
+    hudContext.fillStyle = "rgba(14, 220, 126, 0.07)";
+    hudContext.fill();
+    hudContext.shadowBlur = 0;
+
+    hudContext.fillStyle = "rgba(255, 255, 255, 0.08)";
+    hudContext.fillRect(34, h * 0.42, w - 68, 2);
+
+    hudContext.fillStyle = "#e4edff";
+    hudContext.font = "700 72px 'Segoe UI', system-ui, sans-serif";
+    hudContext.textBaseline = "middle";
+    hudContext.textAlign = "left";
+    hudContext.fillText("Змейка", 64, h * 0.35);
+
+    const scoreLabel = `Счёт: ${score}`;
+    hudContext.fillStyle = "#86f5a3";
+    hudContext.font = "700 96px 'Segoe UI', system-ui, sans-serif";
+    hudContext.textAlign = "right";
+    hudContext.fillText(scoreLabel, w - 72, h * 0.65);
+
+    hudContext.fillStyle = "rgba(216, 227, 245, 0.78)";
+    hudContext.font = "400 38px 'Segoe UI', system-ui, sans-serif";
+    hudContext.textAlign = "left";
+    hudContext.fillText("Управление: стрелки", 64, h - 64);
+
+    hudTexture.needsUpdate = true;
+  }
+
+  function updateScore(score: number): void {
+    paintHud(score);
+  }
 
   const world = new CANNON.World({
     gravity: new CANNON.Vec3(0, -30, 0),
@@ -245,7 +354,7 @@ export function createScene3D(
   function resize(): void {
     const width = canvas.clientWidth || canvas.width;
     const height = canvas.clientHeight || canvas.height;
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const needResize =
       canvas.width !== Math.floor(width * dpr) ||
       canvas.height !== Math.floor(height * dpr);
@@ -253,8 +362,32 @@ export function createScene3D(
       renderer.setSize(width, height, false);
     }
     renderer.setPixelRatio(dpr);
-    camera.aspect = width / height;
+    const aspect = height > 0 ? width / height : 1;
+    camera.aspect = aspect;
     camera.updateProjectionMatrix();
+
+    const hudDpr = Math.min(window.devicePixelRatio || 1, 2);
+    const targetHudWidth = Math.floor(1024 * hudDpr);
+    const targetHudHeight = Math.floor(256 * hudDpr);
+    if (
+      hudCanvas.width !== targetHudWidth ||
+      hudCanvas.height !== targetHudHeight
+    ) {
+      hudCanvas.width = targetHudWidth;
+      hudCanvas.height = targetHudHeight;
+      paintHud(currentScore);
+    }
+
+    hudCamera.left = -aspect;
+    hudCamera.right = aspect;
+    hudCamera.top = 1;
+    hudCamera.bottom = -1;
+    hudCamera.updateProjectionMatrix();
+
+    const hudWidth = Math.min(aspect * 1.6, 1.8);
+    const hudHeight = hudWidth * (hudCanvas.height / hudCanvas.width);
+    hudPlane.scale.set(hudWidth, hudHeight, 1);
+    hudPlane.position.set(0, 1 - hudHeight * 0.65, 0);
   }
 
   function render(): void {
@@ -283,13 +416,17 @@ export function createScene3D(
         );
       }
     }
+    renderer.clear();
     renderer.render(scene, camera);
+    renderer.clearDepth();
+    renderer.render(hudScene, hudCamera);
   }
 
   return {
     render,
     updateSnake,
     updateApple,
+    updateScore,
     startExplosion,
     stopExplosion,
     resize,

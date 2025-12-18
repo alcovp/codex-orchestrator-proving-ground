@@ -15,6 +15,7 @@ export class SnakeGameState {
   apple: Point = { x: 0, y: 0 };
   direction: Point = { x: 1, y: 0 };
   private nextDirection: Point = { x: 1, y: 0 };
+  score = 0;
 
   constructor(private readonly settings: Settings) {
     this.reset();
@@ -25,6 +26,7 @@ export class SnakeGameState {
     const startY = Math.floor(this.settings.rows / 2);
     this.direction = { x: 1, y: 0 };
     this.nextDirection = { x: 1, y: 0 };
+    this.score = 0;
     this.snake = [
       { x: startX, y: startY },
       { x: startX - 1, y: startY },
@@ -67,6 +69,7 @@ export class SnakeGameState {
     if (!ateApple) {
       this.snake.pop();
     } else {
+      this.score += 1;
       this.apple = this.spawnApple();
     }
 
