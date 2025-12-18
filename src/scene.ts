@@ -1,10 +1,13 @@
 import * as THREE from "three";
+import * as CANNON from "cannon-es";
 import type { Point, Settings } from "./types";
 
 type SceneApi = {
   render(): void;
   updateSnake(segments: Point[]): void;
   updateApple(position: Point): void;
+  startExplosion(segments: Point[]): void;
+  stopExplosion(): void;
   resize(): void;
 };
 
@@ -80,6 +83,31 @@ export function createScene3D(
   grid.position.y = 0.01;
   scene.add(grid);
 
+  const world = new CANNON.World({
+    gravity: new CANNON.Vec3(0, -30, 0),
+  });
+  world.broadphase = new CANNON.NaiveBroadphase();
+  if (world.solver instanceof CANNON.GSSolver) {
+    world.solver.iterations = 10;
+  }
+
+  const segmentMaterial = new CANNON.Material("segment");
+  const floorMaterial = new CANNON.Material("floor");
+  world.addContactMaterial(
+    new CANNON.ContactMaterial(segmentMaterial, floorMaterial, {
+      friction: 0.45,
+      restitution: 0.28,
+    }),
+  );
+
+  const floorBody = new CANNON.Body({
+    mass: 0,
+    shape: new CANNON.Plane(),
+    material: floorMaterial,
+  });
+  floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+  world.addBody(floorBody);
+
   const snakeGeometry = new THREE.BoxGeometry(
     settings.cellSize * 0.9,
     settings.cellSize * 0.9,
@@ -98,6 +126,17 @@ export function createScene3D(
     metalness: 0.12,
   });
   const snakeMeshes: THREE.Mesh[] = [];
+  const segmentHalfExtent = settings.cellSize * 0.45;
+  const segmentShape = new CANNON.Box(
+    new CANNON.Vec3(
+      segmentHalfExtent,
+      segmentHalfExtent,
+      segmentHalfExtent,
+    ),
+  );
+  let explosionBodies: CANNON.Body[] = [];
+  let explosionActive = false;
+  let lastPhysicsStep = performance.now();
 
   const appleMesh = new THREE.Mesh(
     new THREE.SphereGeometry(settings.cellSize * 0.4, 28, 18),
@@ -141,6 +180,7 @@ export function createScene3D(
         continue;
       }
       const world = cellToWorld(segment);
+      mesh.quaternion.identity();
       mesh.position.copy(world);
       mesh.material = i === 0 ? snakeHeadMaterial : snakeBodyMaterial;
     }
@@ -149,6 +189,57 @@ export function createScene3D(
   function updateApple(position: Point): void {
     const world = cellToWorld(position);
     appleMesh.position.set(world.x, settings.cellSize * 0.55, world.z);
+  }
+
+  function startExplosion(segments: Point[]): void {
+    updateSnake(segments);
+    explosionBodies.forEach((body) => world.removeBody(body));
+    explosionBodies = [];
+    explosionActive = true;
+    lastPhysicsStep = performance.now();
+
+    for (let i = 0; i < segments.length; i += 1) {
+      const mesh = snakeMeshes[i];
+      if (!mesh) {
+        continue;
+      }
+      const body = new CANNON.Body({
+        mass: 0.6,
+        shape: segmentShape,
+        position: new CANNON.Vec3(
+          mesh.position.x,
+          mesh.position.y,
+          mesh.position.z,
+        ),
+        material: segmentMaterial,
+      });
+      body.linearDamping = 0.12;
+      body.angularDamping = 0.18;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = settings.cellSize * (2.5 + Math.random() * 3.5);
+      const upward = settings.cellSize * (2.2 + Math.random() * 1.2);
+      body.velocity.set(
+        Math.cos(angle) * speed,
+        upward,
+        Math.sin(angle) * speed,
+      );
+      body.angularVelocity.set(
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10,
+      );
+      world.addBody(body);
+      explosionBodies.push(body);
+    }
+  }
+
+  function stopExplosion(): void {
+    explosionBodies.forEach((body) => world.removeBody(body));
+    explosionBodies = [];
+    explosionActive = false;
+    snakeMeshes.forEach((mesh) => {
+      mesh.quaternion.identity();
+    });
   }
 
   function resize(): void {
@@ -168,6 +259,30 @@ export function createScene3D(
 
   function render(): void {
     resize();
+    const now = performance.now();
+    const deltaSeconds = (now - lastPhysicsStep) / 1000;
+    lastPhysicsStep = now;
+    if (explosionActive) {
+      world.step(1 / 60, deltaSeconds, 5);
+      for (let i = 0; i < explosionBodies.length; i += 1) {
+        const body = explosionBodies[i];
+        const mesh = snakeMeshes[i];
+        if (!mesh || !body) {
+          continue;
+        }
+        mesh.position.set(
+          body.position.x,
+          body.position.y,
+          body.position.z,
+        );
+        mesh.quaternion.set(
+          body.quaternion.x,
+          body.quaternion.y,
+          body.quaternion.z,
+          body.quaternion.w,
+        );
+      }
+    }
     renderer.render(scene, camera);
   }
 
@@ -175,6 +290,8 @@ export function createScene3D(
     render,
     updateSnake,
     updateApple,
+    startExplosion,
+    stopExplosion,
     resize,
   };
 }

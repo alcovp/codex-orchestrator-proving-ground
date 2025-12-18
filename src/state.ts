@@ -1,9 +1,14 @@
 import type { Point, Settings } from "./types";
 
-export type StepResult = {
-  reset: boolean;
-  ateApple: boolean;
-};
+export type StepResult =
+  | {
+      status: "alive";
+      ateApple: boolean;
+    }
+  | {
+      status: "dead";
+      segments: Point[];
+    };
 
 export class SnakeGameState {
   snake: Point[] = [];
@@ -43,7 +48,7 @@ export class SnakeGameState {
     const head = this.snake[0];
     if (!head) {
       this.reset();
-      return { reset: true, ateApple: false };
+      return { status: "alive", ateApple: false };
     }
     const newHead: Point = {
       x: head.x + this.direction.x,
@@ -51,8 +56,10 @@ export class SnakeGameState {
     };
 
     if (this.isOutOfBounds(newHead) || this.isOnSnake(newHead)) {
-      this.reset();
-      return { reset: true, ateApple: false };
+      return {
+        status: "dead",
+        segments: this.snake.map((segment) => ({ ...segment })),
+      };
     }
 
     const ateApple = newHead.x === this.apple.x && newHead.y === this.apple.y;
@@ -63,7 +70,7 @@ export class SnakeGameState {
       this.apple = this.spawnApple();
     }
 
-    return { reset: false, ateApple };
+    return { status: "alive", ateApple };
   }
 
   private spawnApple(): Point {

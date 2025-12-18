@@ -10,17 +10,34 @@ if (!(canvasElement instanceof HTMLCanvasElement)) {
 
 const scene = createScene3D(canvasElement, settings);
 const game = new SnakeGameState(settings);
+const explosionDurationMs = 3000;
+let explosionTimeoutId: number | null = null;
+let isExploding = false;
 
 attachKeyboardControls((direction) => game.tryChangeDirection(direction));
 
 function tick(): void {
+  if (isExploding) {
+    return;
+  }
   const result = game.step();
+  if (result.status === "dead") {
+    isExploding = true;
+    scene.startExplosion(result.segments);
+    if (explosionTimeoutId !== null) {
+      window.clearTimeout(explosionTimeoutId);
+    }
+    explosionTimeoutId = window.setTimeout(() => {
+      scene.stopExplosion();
+      game.reset();
+      scene.updateSnake(game.snake);
+      scene.updateApple(game.apple);
+      isExploding = false;
+    }, explosionDurationMs);
+    return;
+  }
   scene.updateSnake(game.snake);
   scene.updateApple(game.apple);
-  if (result.reset) {
-    scene.updateSnake(game.snake);
-    scene.updateApple(game.apple);
-  }
 }
 
 function renderLoop(): void {
