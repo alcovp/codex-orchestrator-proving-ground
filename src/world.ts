@@ -236,7 +236,7 @@ export function updateGameWorld(world: GameWorld, now: number): void {
     if (!building.queue.length) {
       return;
     }
-    const next = building.queue[0];
+    const next = building.queue[0]!;
     if (now >= next.readyAt) {
       building.queue.shift();
       spawnFromQueue(world, building, next);

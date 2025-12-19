@@ -1,6 +1,13 @@
 import { createWorldScene } from "./scene";
 import { maps, worldSettings } from "./settings";
-import type { GamePhase, GameSession, MapDefinition } from "./types";
+import type {
+  GamePhase,
+  GameSession,
+  GameWorld,
+  MapDefinition,
+  Selection,
+} from "./types";
+import { createGameWorld, findSelection, updateGameWorld } from "./world";
 
 function requireElement<T extends Element>(el: T | null, name: string): T {
   if (!el) {
@@ -57,6 +64,26 @@ const restartButton = requireElement(
   document.querySelector<HTMLButtonElement>("#restart-game"),
   "#restart-game",
 );
+const hudSpice = requireElement(
+  document.querySelector<HTMLElement>("#hud-spice"),
+  "#hud-spice",
+);
+const hudPower = requireElement(
+  document.querySelector<HTMLElement>("#hud-power"),
+  "#hud-power",
+);
+const hudSelectionName = requireElement(
+  document.querySelector<HTMLElement>("#hud-selection-name"),
+  "#hud-selection-name",
+);
+const hudSelectionDetails = requireElement(
+  document.querySelector<HTMLElement>("#hud-selection-details"),
+  "#hud-selection-details",
+);
+const hudProduction = requireElement(
+  document.querySelector<HTMLElement>("#hud-production"),
+  "#hud-production",
+);
 
 const scene = createWorldScene(canvasElement, worldSettings);
 const emptyMap: MapDefinition = {
@@ -80,6 +107,8 @@ maps.forEach((map) => {
 let phase: GamePhase = "menu";
 let session: GameSession | null = null;
 let preparedMap: MapDefinition | null = initialMap ?? null;
+let world: GameWorld | null = null;
+let currentSelection: Selection | null = null;
 let isDraggingSelection = false;
 let selectionStart: { x: number; y: number } | null = null;
 
@@ -123,10 +152,51 @@ function setPhase(next: GamePhase): void {
   }
 }
 
-function updateHud(map: MapDefinition): void {
-  hudMapName.textContent = map.name;
+function updateHud(map: MapDefinition | null, worldState: GameWorld | null): void {
+  hudMapName.textContent = map?.name ?? "Нет карты";
+  const baseHint =
+    "Камера: WASD/края экрана, колесо — зум. ЛКМ — выбор, рамка — множественный выбор.";
+  if (!worldState) {
+    hudStatus.textContent = "Создайте матч и нажмите «Начать». " + baseHint;
+    hudSpice.textContent = "—";
+    hudPower.textContent = "—";
+    hudSelectionName.textContent = "Ничего не выбрано";
+    hudSelectionDetails.textContent = "Выделите здание или юнит.";
+    hudProduction.textContent = "";
+    return;
+  }
+  const player = worldState.players.player;
   hudStatus.textContent =
-    "Пустынные тайлы, стартовые площадки и залежи спайса размечены. Камера: WASD/края экрана, колесо — зум. ЛКМ + выделение рамкой.";
+    "База развернута: штаб, казармы, стартовые юниты и очередь на производство.";
+  hudSpice.textContent = `${Math.floor(player.spice)} спайс`;
+  hudPower.textContent = `${Math.floor(player.power)} энергия`;
+
+  const target = currentSelection ? findSelection(worldState, currentSelection) : null;
+  if (!target) {
+    hudSelectionName.textContent = "Ничего не выбрано";
+    hudSelectionDetails.textContent = "Кликните по объекту на поле.";
+    hudProduction.textContent = "";
+    return;
+  }
+
+  if ("queue" in target) {
+    const def = worldState.defs.buildings[target.typeId];
+    hudSelectionName.textContent = `${def.name} (${target.owner === "player" ? "Вы" : "ИИ"})`;
+    hudSelectionDetails.textContent = `Прочность: ${Math.floor(target.hp)} / ${def.maxHp}`;
+    if (target.queue.length) {
+      const next = target.queue[0]!;
+      const unitDef = worldState.defs.units[next.unitTypeId];
+      const remaining = Math.max(0, Math.ceil((next.readyAt - performance.now()) / 1000));
+      hudProduction.textContent = `В очереди: ${unitDef.name} • готов через ${remaining} с (${target.queue.length} шт.)`;
+    } else {
+      hudProduction.textContent = "Очередь пуста";
+    }
+  } else {
+    const def = worldState.defs.units[target.typeId];
+    hudSelectionName.textContent = `${def.name} (${target.owner === "player" ? "Вы" : "ИИ"})`;
+    hudSelectionDetails.textContent = `Прочность: ${Math.floor(target.hp)} / ${def.maxHp}`;
+    hudProduction.textContent = "";
+  }
 }
 
 function createLobby(): void {
@@ -148,18 +218,24 @@ function startSession(mapOverride?: MapDefinition | null): void {
     lobbyStatus.dataset.state = "error";
     return;
   }
+  world = createGameWorld(map, performance.now());
+  currentSelection = null;
   scene.setMap(map);
+  scene.updateWorld(world, currentSelection);
   session = { map, startedAt: performance.now() };
-  updateHud(map);
+  updateHud(map, world);
   setPhase("playing");
 }
 
 function backToMenu(): void {
   session = null;
+  world = null;
+  currentSelection = null;
   preparedMap = initialMap ?? null;
   setPhase("menu");
   lobbyStatus.textContent = "Выберите карту и создайте игру.";
   lobbyStatus.dataset.state = "idle";
+  updateHud(preparedMap, world);
 }
 
 function beginSelectionDrag(event: PointerEvent): void {
@@ -194,6 +270,18 @@ function onCanvasPointerUp(event: PointerEvent): void {
   }
   if (isDraggingSelection) {
     endSelectionDrag(event);
+    if (world && selectionRect.dataset.active === "true") {
+      const rect = selectionRect.getBoundingClientRect();
+      currentSelection = scene.pickInRect(rect);
+      scene.updateWorld(world, currentSelection);
+      updateHud(world.map, world);
+      return;
+    }
+  }
+  if (world) {
+    currentSelection = scene.pick(event.clientX, event.clientY);
+    scene.updateWorld(world, currentSelection);
+    updateHud(world.map, world);
   }
 }
 
@@ -215,10 +303,21 @@ function renderLoop(): void {
   if (!isRunning) {
     return;
   }
+  const now = performance.now();
+  if (phase === "playing" && world) {
+    updateGameWorld(world, now);
+    const resolved = currentSelection ? findSelection(world, currentSelection) : null;
+    if (!resolved) {
+      currentSelection = null;
+    }
+    scene.updateWorld(world, currentSelection);
+    updateHud(world.map, world);
+  }
   scene.render();
   window.requestAnimationFrame(renderLoop);
 }
 
 backToMenu();
 scene.setMap(initialMap);
+updateHud(initialMap, world);
 renderLoop();

@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import type {
+  BuildingDefinition,
   BuildingState,
+  BuildingTypeId,
+  FactionId,
   GameWorld,
   MapDefinition,
   Selection,
@@ -15,6 +18,7 @@ export type WorldScene = {
   setInputEnabled(enabled: boolean): void;
   updateWorld(world: GameWorld, selection: Selection | null): void;
   pick(screenX: number, screenY: number): Selection | null;
+  pickInRect(rect: DOMRect): Selection | null;
   dispose(): void;
 };
 
@@ -62,6 +66,25 @@ export function createWorldScene(
   let mapHalfHeight = 0;
   let resourceGroup: THREE.Group | null = null;
   let startGroup: THREE.Group | null = null;
+  const buildingMeshes = new Map<
+    string,
+    { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh }
+  >();
+  const unitMeshes = new Map<
+    string,
+    { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh }
+  >();
+  const pickTargets: THREE.Object3D[] = [];
+  const raycaster = new THREE.Raycaster();
+  const pointerNdc = new THREE.Vector2();
+  const factionTint: Record<FactionId, THREE.ColorRepresentation> = {
+    player: 0x76d4ff,
+    ai: 0xff8f76,
+  };
+  const factionAccent: Record<FactionId, THREE.ColorRepresentation> = {
+    player: 0x1c6bb0,
+    ai: 0x8c2d1e,
+  };
 
   const cameraTarget = new THREE.Vector3();
   const desiredTarget = new THREE.Vector3();
@@ -236,6 +259,260 @@ export function createWorldScene(
       startGroup?.add(arrow);
     });
     scene.add(startGroup);
+  }
+
+  function createSelectionRing(
+    radius: number,
+    color: THREE.ColorRepresentation,
+  ): THREE.Mesh {
+    const geometry = new THREE.RingGeometry(Math.max(0.6, radius * 0.45), radius, 48);
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.38,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.05;
+    return mesh;
+  }
+
+  function disposeEntityMesh(entry: { group: THREE.Group; ring: THREE.Mesh; body: THREE.Mesh }): void {
+    entry.group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.geometry.dispose();
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((mat) => mat.dispose());
+        } else if (obj.material instanceof THREE.Material) {
+          obj.material.dispose();
+        }
+      }
+    });
+    scene.remove(entry.group);
+  }
+
+  function makeBuildingMesh(
+    building: BuildingState,
+    def: BuildingDefinition,
+  ): { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh } {
+    const group = new THREE.Group();
+    const baseRadius = def.size * 0.5;
+    const bodyGeometry = new THREE.CylinderGeometry(
+      baseRadius * 0.88,
+      baseRadius,
+      Math.max(2.4, def.size * 0.4),
+      12,
+      1,
+    );
+    const bodyMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(factionTint[building.owner]),
+      emissive: new THREE.Color(factionAccent[building.owner]),
+      roughness: 0.48,
+      metalness: 0.22,
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    body.userData.selection = { kind: "building", id: building.id };
+    group.add(body);
+
+    const capGeometry = new THREE.ConeGeometry(baseRadius * 0.45, 2.2, 10);
+    const capMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf1e4cf,
+      emissive: new THREE.Color(factionAccent[building.owner]),
+      roughness: 0.32,
+      metalness: 0.3,
+    });
+    const cap = new THREE.Mesh(capGeometry, capMaterial);
+    cap.position.y = Math.max(1.6, def.size * 0.2);
+    cap.rotation.y = THREE.MathUtils.degToRad(building.facingDeg + 25);
+    cap.castShadow = true;
+    cap.receiveShadow = true;
+    cap.userData.selection = { kind: "building", id: building.id };
+    group.add(cap);
+
+    const ring = createSelectionRing(baseRadius * 0.95, factionTint[building.owner]);
+    group.add(ring);
+
+    group.position.set(building.position.x, 0, building.position.z);
+    group.rotation.y = THREE.MathUtils.degToRad(building.facingDeg);
+    return { group, ring, body };
+  }
+
+  function makeUnitMesh(unit: UnitState): { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh } {
+    const group = new THREE.Group();
+    const bodyGeometry = new THREE.CylinderGeometry(0.7, 0.7, 1.8, 12);
+    const bodyMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(factionTint[unit.owner]),
+      emissive: new THREE.Color(factionAccent[unit.owner]),
+      roughness: 0.42,
+      metalness: 0.25,
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    body.userData.selection = { kind: "unit", id: unit.id };
+    group.add(body);
+
+    const headGeometry = new THREE.SphereGeometry(0.5, 14, 12);
+    const headMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf5e6c8,
+      emissive: new THREE.Color(factionAccent[unit.owner]),
+      roughness: 0.35,
+      metalness: 0.28,
+    });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 1;
+    head.userData.selection = { kind: "unit", id: unit.id };
+    head.castShadow = true;
+    head.receiveShadow = true;
+    group.add(head);
+
+    const ring = createSelectionRing(1.1, factionTint[unit.owner]);
+    group.add(ring);
+
+    group.position.set(unit.position.x, 0, unit.position.z);
+    group.rotation.y = THREE.MathUtils.degToRad(unit.facingDeg);
+    return { group, ring, body };
+  }
+
+  function syncSelectionHighlight(entry: { ring: THREE.Mesh }, selected: boolean): void {
+    const material = entry.ring.material;
+    if (material instanceof THREE.Material) {
+      material.opacity = selected ? 0.9 : 0.35;
+      material.visible = true;
+    }
+  }
+
+  function syncBuildingMeshes(world: GameWorld, selection: Selection | null): void {
+    const seen = new Set<string>();
+    world.buildings.forEach((building) => {
+      seen.add(building.id);
+      const def = world.defs.buildings[building.typeId as BuildingTypeId];
+      let entry = buildingMeshes.get(building.id);
+      if (!entry) {
+        entry = makeBuildingMesh(building, def);
+        buildingMeshes.set(building.id, entry);
+        scene.add(entry.group);
+      }
+      entry.group.position.set(building.position.x, 0, building.position.z);
+      entry.group.rotation.y = THREE.MathUtils.degToRad(building.facingDeg);
+      syncSelectionHighlight(entry, selection?.id === building.id && selection.kind === "building");
+    });
+
+    buildingMeshes.forEach((entry, id) => {
+      if (!seen.has(id)) {
+        disposeEntityMesh(entry);
+        buildingMeshes.delete(id);
+      }
+    });
+  }
+
+  function syncUnitMeshes(world: GameWorld, selection: Selection | null): void {
+    const seen = new Set<string>();
+    world.units.forEach((unit) => {
+      seen.add(unit.id);
+      let entry = unitMeshes.get(unit.id);
+      if (!entry) {
+        entry = makeUnitMesh(unit);
+        unitMeshes.set(unit.id, entry);
+        scene.add(entry.group);
+      }
+      entry.group.position.set(unit.position.x, 0, unit.position.z);
+      entry.group.rotation.y = THREE.MathUtils.degToRad(unit.facingDeg);
+      syncSelectionHighlight(entry, selection?.id === unit.id && selection.kind === "unit");
+    });
+
+    unitMeshes.forEach((entry, id) => {
+      if (!seen.has(id)) {
+        disposeEntityMesh(entry);
+        unitMeshes.delete(id);
+      }
+    });
+  }
+
+  function rebuildPickTargets(): void {
+    pickTargets.length = 0;
+    buildingMeshes.forEach((entry) => pickTargets.push(entry.body));
+    unitMeshes.forEach((entry) => pickTargets.push(entry.body));
+  }
+
+  function pick(screenX: number, screenY: number): Selection | null {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointerNdc.set(
+      ((screenX - rect.left) / rect.width) * 2 - 1,
+      -((screenY - rect.top) / rect.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(pointerNdc, camera);
+    const hits = raycaster.intersectObjects(pickTargets, true);
+    if (!hits.length) {
+      return null;
+    }
+    const selection = hits[0]!.object.userData.selection as Selection | undefined;
+    return selection ?? null;
+  }
+
+  function pickInRect(rect: DOMRect): Selection | null {
+    if (!rect.width || !rect.height) {
+      return null;
+    }
+    const view = renderer.domElement.getBoundingClientRect();
+    const candidates: Array<{ selection: Selection; screen: { x: number; y: number } }> = [];
+
+    function addCandidate(
+      id: string,
+      kind: Selection["kind"],
+      position: THREE.Vector3,
+    ): void {
+      const projected = position.clone().project(camera);
+      const screenX = ((projected.x + 1) / 2) * view.width + view.left;
+      const screenY = ((-projected.y + 1) / 2) * view.height + view.top;
+      if (
+        screenX >= rect.left &&
+        screenX <= rect.right &&
+        screenY >= rect.top &&
+        screenY <= rect.bottom
+      ) {
+        candidates.push({
+          selection: { kind, id },
+          screen: { x: screenX, y: screenY },
+        });
+      }
+    }
+
+    buildingMeshes.forEach((entry, id) => {
+      const pos = new THREE.Vector3();
+      pos.setFromMatrixPosition(entry.group.matrixWorld);
+      addCandidate(id, "building", pos);
+    });
+    unitMeshes.forEach((entry, id) => {
+      const pos = new THREE.Vector3();
+      pos.setFromMatrixPosition(entry.group.matrixWorld);
+      addCandidate(id, "unit", pos);
+    });
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    // Prefer units first, then buildings. Pick the one nearest to the center of the rectangle.
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    candidates.sort((a, b) => {
+      if (a.selection.kind !== b.selection.kind) {
+        return a.selection.kind === "unit" ? -1 : 1;
+      }
+      const da =
+        (a.screen.x - centerX) * (a.screen.x - centerX) +
+        (a.screen.y - centerY) * (a.screen.y - centerY);
+      const db =
+        (b.screen.x - centerX) * (b.screen.x - centerX) +
+        (b.screen.y - centerY) * (b.screen.y - centerY);
+      return da - db;
+    });
+    return candidates[0]?.selection ?? null;
   }
 
   function isMoveKey(code: string): boolean {
@@ -428,6 +705,13 @@ export function createWorldScene(
     render,
     resize,
     setInputEnabled,
+    updateWorld: (world: GameWorld, selection: Selection | null) => {
+      syncBuildingMeshes(world, selection);
+      syncUnitMeshes(world, selection);
+      rebuildPickTargets();
+    },
+    pick,
+    pickInRect,
     dispose: () => {
       canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("pointermove", onPointerMove);
@@ -452,6 +736,11 @@ export function createWorldScene(
           grid.material.dispose();
         }
       }
+      buildingMeshes.forEach((entry) => disposeEntityMesh(entry));
+      unitMeshes.forEach((entry) => disposeEntityMesh(entry));
+      buildingMeshes.clear();
+      unitMeshes.clear();
+      pickTargets.length = 0;
     },
   };
 }

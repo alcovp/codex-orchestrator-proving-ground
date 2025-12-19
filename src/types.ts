@@ -46,6 +46,7 @@ export type ResourceSpot = {
   position: { x: number; z: number };
   radius: number;
   richness: number;
+  amount?: number;
 };
 
 export type FactionId = "player" | "ai";
@@ -59,6 +60,7 @@ export type UnitDefinition = {
   maxHp: number;
   buildTime: number;
   moveSpeed: number;
+  cost: { spice: number; power?: number };
 };
 
 export type BuildingDefinition = {
@@ -68,6 +70,7 @@ export type BuildingDefinition = {
   size: number;
   produces: UnitTypeId[];
   queueLimit: number;
+  cost: { spice: number; power?: number };
 };
 
 export type ProductionQueueItem = {
@@ -77,6 +80,14 @@ export type ProductionQueueItem = {
   readyAt: number;
 };
 
+export type HarvestTaskState = {
+  mode: "idle" | "toResource" | "gathering" | "toDropoff";
+  nodeId: string | null;
+  dropoffId: string | null;
+  carried: number;
+  progress: number;
+};
+
 export type UnitState = {
   id: string;
   typeId: UnitTypeId;
@@ -84,6 +95,7 @@ export type UnitState = {
   position: { x: number; z: number };
   facingDeg: number;
   hp: number;
+  harvest?: HarvestTaskState;
 };
 
 export type BuildingState = {
@@ -103,6 +115,15 @@ export type PlayerState = {
   power: number;
 };
 
+export type ResourceNodeState = {
+  id: string;
+  spotId: string;
+  position: { x: number; z: number };
+  radius: number;
+  richness: number;
+  amount: number;
+};
+
 export type Selection =
   | { kind: "unit"; id: string }
   | { kind: "building"; id: string };
@@ -111,6 +132,7 @@ export type GameWorld = {
   map: MapDefinition;
   units: UnitState[];
   buildings: BuildingState[];
+  resourceNodes: ResourceNodeState[];
   players: Record<FactionId, PlayerState>;
   defs: {
     units: Record<UnitTypeId, UnitDefinition>;
