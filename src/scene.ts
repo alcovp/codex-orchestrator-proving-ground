@@ -927,7 +927,7 @@ export function createWorldScene(
     const deltaDistance = distance - touchState.lastDistance;
     touchState.lastDistance = distance;
     touchState.lastCenter.copy(center);
-    const pinchStep = deltaDistance * 0.02;
+    const pinchStep = deltaDistance * 0.08;
     targetDistance = THREE.MathUtils.clamp(
       targetDistance - pinchStep,
       settings.camera.minDistance,
