@@ -47,6 +47,7 @@ export function createWorldScene(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.autoClear = false;
   const hudLayer = createHudLayer(renderer);
 
   const camera = new THREE.PerspectiveCamera(
@@ -1089,6 +1090,7 @@ export function createWorldScene(
     lastFrame = now;
     applyMovement(deltaSeconds);
     updateCamera(deltaSeconds);
+    renderer.clear();
     renderer.render(scene, camera);
     hudLayer.render(renderer);
   }
