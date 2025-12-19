@@ -197,9 +197,7 @@ export function createWorldScene(
 
     desiredTarget.set(0, 0, 0);
     cameraTarget.copy(desiredTarget);
-    const fogNear = Math.max(map.size.width, map.size.height) * 0.45;
-    const fogFar = fogNear * 2.3;
-    scene.fog = new THREE.Fog(backgroundColor, fogNear, fogFar);
+    scene.fog = null;
     currentMap = map;
   }
 
@@ -778,19 +776,19 @@ export function createWorldScene(
     fogTexture.needsUpdate = true;
     const geometry = new THREE.PlaneGeometry(currentMap.size.width, currentMap.size.height, 1, 1);
     const material = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0x05060b),
+      color: new THREE.Color(0x000000),
       transparent: true,
       depthWrite: false,
       depthTest: false,
-      opacity: 1,
+      opacity: 0.95,
       alphaMap: fogTexture,
-      blending: THREE.MultiplyBlending,
+      blending: THREE.NormalBlending,
       side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = 0.32;
-    mesh.renderOrder = 100;
+    mesh.renderOrder = 1000;
     fogMesh = mesh;
     scene.add(mesh);
   }
@@ -811,12 +809,9 @@ export function createWorldScene(
       }
     }
     for (let i = 0; i < fogData.length; i += 1) {
-      let alpha = 255;
-      if (visible[i]) {
-        alpha = 0;
-      } else if (explored[i]) {
-        alpha = 220;
-      }
+      const isVisible = visible[i] === 1;
+      const isExplored = explored[i] === 1;
+      const alpha = isVisible ? 0 : isExplored ? 180 : 245;
       fogData[i] = alpha;
     }
     fogTexture.needsUpdate = true;
