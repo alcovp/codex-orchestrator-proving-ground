@@ -1,6 +1,13 @@
 {
   "runs": [
     {
+      "run": 25,
+      "commit": "58b9bb34b1f175b987436020ea2c3ea7d231f250",
+      "ref": "refs/heads/remote-plane",
+      "repository": "alcovp/codex-orchestrator-proving-ground",
+      "createdAt": "2025-12-19T07:11:53.821Z"
+    },
+    {
       "run": 24,
       "commit": "1f2da9cc142f65752e17bbedc0efad30e6fe2b18",
       "ref": "refs/heads/remote-plane",
