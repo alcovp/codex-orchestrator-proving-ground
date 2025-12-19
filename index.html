@@ -2,9 +2,15 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0" />
-    <title>Змейка</title>
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0"
+    />
+    <title>Dune RTS Prototype</title>
     <style>
+      :root {
+        color-scheme: dark;
+      }
       * {
         box-sizing: border-box;
       }
@@ -14,17 +20,187 @@
         height: 100%;
         margin: 0;
         overflow: hidden;
-        background: #05080f;
+        background: radial-gradient(circle at 20% 20%, #1c1410, #0a0806 55%);
+        font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+        color: #e8e0d6;
       }
       canvas {
+        position: absolute;
+        inset: 0;
         display: block;
         width: 100vw;
         height: 100vh;
         outline: none;
       }
+      .ui-layer {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+      }
+      .menu {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(23, 18, 14, 0.9);
+        border: 1px solid rgba(255, 196, 128, 0.16);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        border-radius: 18px;
+        padding: 26px;
+        min-width: 420px;
+        pointer-events: auto;
+        backdrop-filter: blur(4px);
+      }
+      .menu h1 {
+        margin: 0 0 6px 0;
+        font-size: 26px;
+        letter-spacing: 0.02em;
+        color: #f6d9a1;
+      }
+      .menu p {
+        margin: 0 0 18px 0;
+        color: #c4b7a3;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: #b59d7a;
+        margin-bottom: 6px;
+      }
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 196, 128, 0.2);
+        background: rgba(26, 20, 16, 0.8);
+        color: #f1e3d3;
+        font-size: 14px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      button {
+        border: 1px solid rgba(255, 196, 128, 0.3);
+        background: linear-gradient(145deg, #e3b464, #c98a3f);
+        color: #1a120d;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+      }
+      button.secondary {
+        background: rgba(37, 28, 21, 0.8);
+        color: #f1e3d3;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        filter: brightness(1.02);
+      }
+      .lobby-status {
+        margin-top: 14px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(31, 24, 19, 0.8);
+        border: 1px solid rgba(255, 196, 128, 0.16);
+        color: #d4c3a9;
+        font-size: 13px;
+      }
+      .lobby-status[data-state="ready"] {
+        color: #8ff2a9;
+        border-color: rgba(143, 242, 169, 0.35);
+      }
+      .lobby-status[data-state="error"] {
+        color: #ffb4a2;
+        border-color: rgba(255, 160, 138, 0.35);
+      }
+      .hud {
+        position: absolute;
+        bottom: 24px;
+        left: 24px;
+        right: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: linear-gradient(90deg, rgba(18, 14, 11, 0.78), rgba(22, 17, 14, 0.68));
+        border: 1px solid rgba(255, 196, 128, 0.14);
+        pointer-events: auto;
+      }
+      .hud .block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .hud .label {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #b59d7a;
+      }
+      .hud .value {
+        font-size: 18px;
+        color: #f6d9a1;
+      }
+      .hud .sub {
+        font-size: 13px;
+        color: #d2c3ab;
+      }
+      .hud .actions {
+        display: flex;
+        gap: 10px;
+      }
+      .selection-rect {
+        position: absolute;
+        border: 1px solid rgba(255, 196, 128, 0.85);
+        background: rgba(255, 196, 128, 0.14);
+        box-shadow:
+          0 0 0 1px rgba(18, 14, 11, 0.65),
+          0 10px 26px rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+        display: none;
+        z-index: 2;
+      }
+      .selection-rect[data-active="true"] {
+        display: block;
+      }
     </style>
   </head>
   <body>
+    <div class="ui-layer">
+      <div class="menu" id="menu-screen">
+        <h1>Spice Frontier</h1>
+        <p>Прототип одиночной RTS в духе Dune. Создай игру и жми «Начать».</p>
+        <label for="map-select">Карта</label>
+        <select id="map-select" name="map"></select>
+        <div class="actions">
+          <button id="create-game" class="secondary">Создать игру</button>
+          <button id="start-game">Начать</button>
+        </div>
+        <div class="lobby-status" id="lobby-status" data-state="idle">
+          Выберите карту и создайте игру.
+        </div>
+      </div>
+      <div class="hud" id="hud" hidden>
+        <div class="block">
+          <div class="label">Карта</div>
+          <div class="value" id="hud-map-name"></div>
+          <div class="sub" id="hud-status"></div>
+        </div>
+        <div class="actions">
+          <button id="restart-game" class="secondary">Рестарт</button>
+          <button id="back-to-menu">В меню</button>
+        </div>
+      </div>
+      <div class="selection-rect" id="selection-rect"></div>
+    </div>
     <canvas id="game" aria-label="Игровое поле"></canvas>
     <script type="module" src="/src/main.ts"></script>
   </body>

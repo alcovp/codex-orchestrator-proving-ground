@@ -1,476 +1,457 @@
 import * as THREE from "three";
-import * as CANNON from "cannon-es";
-import type { Enemy, Point, Settings } from "./types";
+import type {
+  BuildingState,
+  GameWorld,
+  MapDefinition,
+  Selection,
+  UnitState,
+  WorldSettings,
+} from "./types";
 
-type SceneApi = {
+export type WorldScene = {
+  setMap(map: MapDefinition): void;
   render(): void;
-  updateSnake(segments: Point[]): void;
-  updateApple(position: Point): void;
-  updateEnemies(enemies: Enemy[]): void;
-  updateScore(score: number): void;
-  startExplosion(segments: Point[]): void;
-  stopExplosion(): void;
   resize(): void;
+  setInputEnabled(enabled: boolean): void;
+  updateWorld(world: GameWorld, selection: Selection | null): void;
+  pick(screenX: number, screenY: number): Selection | null;
+  dispose(): void;
 };
 
-export function createScene3D(
+export function createWorldScene(
   canvas: HTMLCanvasElement,
-  settings: Settings,
-): SceneApi {
+  settings: WorldSettings,
+): WorldScene {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#0b0f16");
+  const backgroundColor = new THREE.Color("#0c0a08");
+  scene.background = backgroundColor;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.autoClear = false;
-  if (scene.background instanceof THREE.Color) {
-    renderer.setClearColor(scene.background);
-  }
 
-  const boardWidth = settings.columns * settings.cellSize;
-  const boardDepth = settings.rows * settings.cellSize;
-  const halfWidth = boardWidth / 2;
-  const halfDepth = boardDepth / 2;
-  const boardCenter = new THREE.Vector3(0, settings.cellSize * 0.2, 0);
-
-  const cameraRange = Math.max(boardWidth, boardDepth);
-  const cameraHeight = cameraRange * 0.9;
-  const cameraForwardOffset = boardDepth * 0.65;
   const camera = new THREE.PerspectiveCamera(
     55,
-    canvas.clientWidth / canvas.clientHeight,
+    canvas.clientWidth / Math.max(1, canvas.clientHeight),
     0.1,
-    cameraRange * 4,
+    500,
   );
-  camera.position.set(0, cameraHeight, cameraForwardOffset);
-  camera.lookAt(boardCenter);
   scene.add(camera);
 
-  const ambient = new THREE.HemisphereLight(0xb9d4ff, 0x0d1623, 0.35);
+  const ambient = new THREE.HemisphereLight(0xffe3b5, 0x3a2412, 0.7);
   scene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
-  keyLight.position.set(0, cameraRange * 1.2, boardDepth * 0.25);
-  keyLight.castShadow = true;
-  keyLight.shadow.mapSize.set(2048, 2048);
-  const shadowRange = cameraRange;
-  keyLight.shadow.camera.near = 1;
-  keyLight.shadow.camera.far = shadowRange * 2;
-  keyLight.shadow.camera.left = -shadowRange;
-  keyLight.shadow.camera.right = shadowRange;
-  keyLight.shadow.camera.top = shadowRange;
-  keyLight.shadow.camera.bottom = -shadowRange;
-  keyLight.target.position.copy(boardCenter);
-  scene.add(keyLight);
-  scene.add(keyLight.target);
+  const sun = new THREE.DirectionalLight(0xfff4da, 1.05);
+  sun.position.set(120, 160, 60);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 10;
+  sun.shadow.camera.far = 340;
+  sun.shadow.camera.left = -180;
+  sun.shadow.camera.right = 180;
+  sun.shadow.camera.top = 180;
+  sun.shadow.camera.bottom = -180;
+  scene.add(sun);
 
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(
-      boardWidth + settings.cellSize * 4,
-      boardDepth + settings.cellSize * 4,
-    ),
-    new THREE.MeshStandardMaterial({
-      color: "#0d1117",
-      roughness: 0.92,
+  let terrain: THREE.Mesh | null = null;
+  let grid: THREE.LineSegments | null = null;
+  let currentMap: MapDefinition | null = null;
+  let mapHalfWidth = 0;
+  let mapHalfHeight = 0;
+  let resourceGroup: THREE.Group | null = null;
+  let startGroup: THREE.Group | null = null;
+
+  const cameraTarget = new THREE.Vector3();
+  const desiredTarget = new THREE.Vector3();
+  const tilt = THREE.MathUtils.degToRad(settings.camera.tiltDeg);
+  let distance = settings.camera.defaultDistance;
+  let targetDistance = settings.camera.defaultDistance;
+  let lastFrame = performance.now();
+  const moveDirection = new THREE.Vector2();
+  const inputState = {
+    pointer: new THREE.Vector2(),
+    pointerInside: false,
+    keys: new Set<string>(),
+    enabled: true,
+  };
+
+  function buildTerrain(map: MapDefinition): void {
+    if (terrain) {
+      terrain.geometry.dispose();
+      if (terrain.material instanceof THREE.Material) {
+        terrain.material.dispose();
+      }
+      scene.remove(terrain);
+      terrain = null;
+    }
+    if (grid) {
+      grid.geometry.dispose();
+      if (grid.material instanceof THREE.Material) {
+        grid.material.dispose();
+      }
+      scene.remove(grid);
+      grid = null;
+    }
+
+    const geometry = new THREE.PlaneGeometry(map.size.width, map.size.height, 1, 1);
+    const material = new THREE.MeshStandardMaterial({
+      color: settings.terrain.baseColor,
+      roughness: 0.86,
       metalness: 0.08,
-    }),
-  );
-  floor.receiveShadow = true;
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
-
-  const grid = new THREE.GridHelper(
-    boardWidth,
-    settings.columns,
-    0x233146,
-    0x1d2738,
-  );
-  grid.position.y = 0.01;
-  scene.add(grid);
-
-  const hudScene = new THREE.Scene();
-  const hudCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
-
-  const hudCanvas = document.createElement("canvas");
-  hudCanvas.width = 1024;
-  hudCanvas.height = 256;
-  const hudContext = (() => {
-    const context = hudCanvas.getContext("2d");
-    if (!context) {
-      throw new Error("Не удалось создать контекст HUD");
-    }
-    return context;
-  })();
-  const hudTexture = new THREE.CanvasTexture(hudCanvas);
-  hudTexture.minFilter = THREE.LinearFilter;
-  hudTexture.magFilter = THREE.LinearFilter;
-  hudTexture.needsUpdate = true;
-
-  const hudMaterial = new THREE.MeshBasicMaterial({
-    map: hudTexture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    toneMapped: false,
-  });
-  const hudGeometry = new THREE.PlaneGeometry(1, 1);
-  const hudPlane = new THREE.Mesh(hudGeometry, hudMaterial);
-  hudPlane.position.set(0, 0.8, 0);
-  hudScene.add(hudPlane);
-
-  let currentScore = 0;
-
-  function drawRoundedRect(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number,
-  ): void {
-    const clampedRadius = Math.min(radius, width / 2, height / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + clampedRadius, y);
-    ctx.lineTo(x + width - clampedRadius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + clampedRadius);
-    ctx.lineTo(x + width, y + height - clampedRadius);
-    ctx.quadraticCurveTo(
-      x + width,
-      y + height,
-      x + width - clampedRadius,
-      y + height,
-    );
-    ctx.lineTo(x + clampedRadius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - clampedRadius);
-    ctx.lineTo(x, y + clampedRadius);
-    ctx.quadraticCurveTo(x, y, x + clampedRadius, y);
-    ctx.closePath();
-  }
-
-  function paintHud(score: number): void {
-    currentScore = score;
-    const w = hudCanvas.width;
-    const h = hudCanvas.height;
-    hudContext.clearRect(0, 0, w, h);
-
-    const panelGradient = hudContext.createLinearGradient(0, 0, w, 0);
-    panelGradient.addColorStop(0, "rgba(42, 70, 110, 0.9)");
-    panelGradient.addColorStop(1, "rgba(26, 34, 52, 0.92)");
-
-    drawRoundedRect(hudContext, 26, 32, w - 52, h - 64, 28);
-    hudContext.fillStyle = panelGradient;
-    hudContext.fill();
-
-    hudContext.shadowColor = "rgba(12, 219, 126, 0.25)";
-    hudContext.shadowBlur = 24;
-    drawRoundedRect(hudContext, 34, 40, w - 68, h - 80, 24);
-    hudContext.fillStyle = "rgba(14, 220, 126, 0.07)";
-    hudContext.fill();
-    hudContext.shadowBlur = 0;
-
-    hudContext.textBaseline = "top";
-    hudContext.textAlign = "left";
-
-    const scoreLabel = `Счёт: ${score}`;
-    hudContext.fillStyle = "#86f5a3";
-    hudContext.font = "700 96px 'Segoe UI', system-ui, sans-serif";
-    hudContext.fillText(scoreLabel, 64, 44);
-
-    hudContext.fillStyle = "rgba(216, 227, 245, 0.88)";
-    hudContext.font = "400 38px 'Segoe UI', system-ui, sans-serif";
-    hudContext.fillText("Управление: стрелки", 64, 152);
-
-    hudTexture.needsUpdate = true;
-  }
-
-  function updateScore(score: number): void {
-    paintHud(score);
-  }
-
-  const world = new CANNON.World({
-    gravity: new CANNON.Vec3(0, -30, 0),
-  });
-  world.broadphase = new CANNON.NaiveBroadphase();
-  if (world.solver instanceof CANNON.GSSolver) {
-    world.solver.iterations = 10;
-  }
-
-  const segmentMaterial = new CANNON.Material("segment");
-  const floorMaterial = new CANNON.Material("floor");
-  world.addContactMaterial(
-    new CANNON.ContactMaterial(segmentMaterial, floorMaterial, {
-      friction: 0.45,
-      restitution: 0.28,
-    }),
-  );
-
-  const floorBody = new CANNON.Body({
-    mass: 0,
-    shape: new CANNON.Plane(),
-    material: floorMaterial,
-  });
-  floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-  world.addBody(floorBody);
-
-  const snakeGeometry = new THREE.BoxGeometry(
-    settings.cellSize * 0.9,
-    settings.cellSize * 0.9,
-    settings.cellSize * 0.9,
-  );
-  const snakeBodyMaterial = new THREE.MeshStandardMaterial({
-    color: "#4ade80",
-    roughness: 0.3,
-    metalness: 0.08,
-  });
-  const snakeHeadMaterial = new THREE.MeshStandardMaterial({
-    color: "#22c55e",
-    emissive: "#1f5c3d",
-    emissiveIntensity: 0.35,
-    roughness: 0.25,
-    metalness: 0.12,
-  });
-  const snakeMeshes: THREE.Mesh[] = [];
-  const segmentHalfExtent = settings.cellSize * 0.45;
-  const segmentShape = new CANNON.Box(
-    new CANNON.Vec3(
-      segmentHalfExtent,
-      segmentHalfExtent,
-      segmentHalfExtent,
-    ),
-  );
-  let explosionBodies: CANNON.Body[] = [];
-  let explosionActive = false;
-  let lastPhysicsStep = performance.now();
-
-  const enemyMeshes: THREE.Mesh[] = [];
-  const enemyGeometry = new THREE.BoxGeometry(
-    settings.cellSize * 0.8,
-    settings.cellSize * 0.8,
-    settings.cellSize * 0.8,
-  );
-  const enemyMaterial = new THREE.MeshStandardMaterial({
-    color: "#f97316",
-    emissive: "#7c2d12",
-    emissiveIntensity: 0.4,
-    roughness: 0.4,
-    metalness: 0.1,
-  });
-
-  const appleMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(settings.cellSize * 0.4, 28, 18),
-    new THREE.MeshStandardMaterial({
-      color: "#f43f5e",
-      emissive: "#431018",
-      emissiveIntensity: 0.5,
-      metalness: 0.25,
-      roughness: 0.3,
-    }),
-  );
-  appleMesh.castShadow = true;
-  scene.add(appleMesh);
-
-  function cellToWorld(point: Point): THREE.Vector3 {
-    return new THREE.Vector3(
-      -halfWidth + settings.cellSize * 0.5 + point.x * settings.cellSize,
-      settings.cellSize * 0.5,
-      -halfDepth + settings.cellSize * 0.5 + point.y * settings.cellSize,
-    );
-  }
-
-  function updateSnake(segments: Point[]): void {
-    while (snakeMeshes.length < segments.length) {
-      const mesh = new THREE.Mesh(snakeGeometry, snakeBodyMaterial);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-      snakeMeshes.push(mesh);
-    }
-    while (snakeMeshes.length > segments.length) {
-      const mesh = snakeMeshes.pop();
-      if (mesh) {
-        scene.remove(mesh);
-      }
-    }
-    for (let i = 0; i < segments.length; i += 1) {
-      const mesh = snakeMeshes[i];
-      const segment = segments[i];
-      if (!mesh || !segment) {
-        continue;
-      }
-      const world = cellToWorld(segment);
-      mesh.quaternion.identity();
-      mesh.position.copy(world);
-      mesh.material = i === 0 ? snakeHeadMaterial : snakeBodyMaterial;
-    }
-  }
-
-  function updateEnemies(enemies: Enemy[]): void {
-    while (enemyMeshes.length < enemies.length) {
-      const mesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-      enemyMeshes.push(mesh);
-    }
-    while (enemyMeshes.length > enemies.length) {
-      const mesh = enemyMeshes.pop();
-      if (mesh) {
-        scene.remove(mesh);
-      }
-    }
-    for (let i = 0; i < enemies.length; i += 1) {
-      const enemy = enemies[i];
-      const mesh = enemyMeshes[i];
-      if (!enemy || !mesh) {
-        continue;
-      }
-      const world = cellToWorld(enemy.position);
-      mesh.position.copy(world);
-      mesh.quaternion.identity();
-    }
-  }
-
-  function updateApple(position: Point): void {
-    const world = cellToWorld(position);
-    appleMesh.position.set(world.x, settings.cellSize * 0.55, world.z);
-  }
-
-  function startExplosion(segments: Point[]): void {
-    updateSnake(segments);
-    explosionBodies.forEach((body) => world.removeBody(body));
-    explosionBodies = [];
-    explosionActive = true;
-    lastPhysicsStep = performance.now();
-
-    for (let i = 0; i < segments.length; i += 1) {
-      const mesh = snakeMeshes[i];
-      if (!mesh) {
-        continue;
-      }
-      const body = new CANNON.Body({
-        mass: 0.6,
-        shape: segmentShape,
-        position: new CANNON.Vec3(
-          mesh.position.x,
-          mesh.position.y,
-          mesh.position.z,
-        ),
-        material: segmentMaterial,
-      });
-      body.linearDamping = 0.12;
-      body.angularDamping = 0.18;
-      const angle = Math.random() * Math.PI * 2;
-      const speed = settings.cellSize * (2.5 + Math.random() * 3.5);
-      const upward = settings.cellSize * (2.2 + Math.random() * 1.2);
-      body.velocity.set(
-        Math.cos(angle) * speed,
-        upward,
-        Math.sin(angle) * speed,
-      );
-      body.angularVelocity.set(
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10,
-      );
-      world.addBody(body);
-      explosionBodies.push(body);
-    }
-  }
-
-  function stopExplosion(): void {
-    explosionBodies.forEach((body) => world.removeBody(body));
-    explosionBodies = [];
-    explosionActive = false;
-    snakeMeshes.forEach((mesh) => {
-      mesh.quaternion.identity();
     });
+    terrain = new THREE.Mesh(geometry, material);
+    terrain.receiveShadow = true;
+    terrain.rotation.x = -Math.PI / 2;
+    scene.add(terrain);
+
+    const gridSegments = Math.max(
+      4,
+      Math.round(Math.max(map.size.width, map.size.height) / Math.max(1, map.tileSize)),
+    );
+    const helper = new THREE.GridHelper(
+      Math.max(map.size.width, map.size.height),
+      gridSegments,
+      new THREE.Color(settings.terrain.accentColor),
+      new THREE.Color(settings.terrain.accentColor),
+    );
+    const helperMaterials = Array.isArray(helper.material)
+      ? helper.material
+      : [helper.material];
+    helperMaterials.forEach((material) => {
+      material.transparent = true;
+      material.opacity = settings.terrain.gridOpacity;
+      material.depthWrite = false;
+    });
+    helper.position.y = 0.02;
+    grid = helper;
+    scene.add(helper);
+
+    mapHalfWidth = Math.max(0, map.size.width / 2 - settings.camera.boundsPadding);
+    mapHalfHeight = Math.max(0, map.size.height / 2 - settings.camera.boundsPadding);
+
+    desiredTarget.set(0, 0, 0);
+    cameraTarget.copy(desiredTarget);
+    const fogNear = Math.max(map.size.width, map.size.height) * 0.45;
+    const fogFar = fogNear * 2.3;
+    scene.fog = new THREE.Fog(backgroundColor, fogNear, fogFar);
+    currentMap = map;
+  }
+
+  function clampTarget(target: THREE.Vector3): void {
+    if (!currentMap) {
+      return;
+    }
+    const maxX = Math.max(0, mapHalfWidth);
+    const maxZ = Math.max(0, mapHalfHeight);
+    target.x = THREE.MathUtils.clamp(target.x, -maxX, maxX);
+    target.z = THREE.MathUtils.clamp(target.z, -maxZ, maxZ);
+  }
+
+  function disposeGroup(group: THREE.Group | null): void {
+    if (!group) {
+      return;
+    }
+    group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.geometry.dispose();
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((mat) => mat.dispose());
+        } else if (obj.material instanceof THREE.Material) {
+          obj.material.dispose();
+        }
+      }
+    });
+    scene.remove(group);
+  }
+
+  function buildResourceSpots(map: MapDefinition): void {
+    disposeGroup(resourceGroup);
+    resourceGroup = new THREE.Group();
+    map.resources.forEach((spot) => {
+      const radius = Math.max(0.8, spot.radius);
+      const height = Math.max(0.6, 0.6 + (spot.richness - 1) * 0.4);
+      const cylinder = new THREE.CylinderGeometry(radius * 0.75, radius, height, 12, 1);
+      const material = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0xc98e43),
+        emissive: new THREE.Color(0x5c320d),
+        roughness: 0.64,
+        metalness: 0.02,
+      });
+      const mesh = new THREE.Mesh(cylinder, material);
+      mesh.position.set(spot.position.x, height / 2, spot.position.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      resourceGroup?.add(mesh);
+
+      const ringGeometry = new THREE.RingGeometry(
+        Math.max(0.2, radius * 0.55),
+        radius * 0.95,
+        32,
+      );
+      const ringMaterial = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(0xffd78b),
+        transparent: true,
+        opacity: 0.38,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(spot.position.x, 0.04, spot.position.z);
+      resourceGroup?.add(ring);
+    });
+    scene.add(resourceGroup);
+  }
+
+  function buildStartLocations(map: MapDefinition): void {
+    disposeGroup(startGroup);
+    startGroup = new THREE.Group();
+    map.startLocations.forEach((loc, index) => {
+      const padRadius = 4;
+      const padGeometry = new THREE.CylinderGeometry(padRadius, padRadius, 0.3, 24);
+      const padMaterial = new THREE.MeshStandardMaterial({
+        color: index === 0 ? 0x89f0ff : 0xf0b589,
+        emissive: index === 0 ? 0x0f6f86 : 0x744419,
+        roughness: 0.62,
+        metalness: 0.12,
+      });
+      const pad = new THREE.Mesh(padGeometry, padMaterial);
+      pad.position.set(loc.position.x, 0.15, loc.position.z);
+      pad.receiveShadow = true;
+      startGroup?.add(pad);
+
+      const arrowGeometry = new THREE.ConeGeometry(1.2, 3, 12);
+      const arrowMaterial = new THREE.MeshStandardMaterial({
+        color: 0xf5e6c8,
+        emissive: 0x5a4728,
+        roughness: 0.4,
+        metalness: 0.18,
+      });
+      const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+      arrow.position.set(loc.position.x, 2.2, loc.position.z);
+      arrow.rotation.y = THREE.MathUtils.degToRad(loc.facingDeg ?? 0);
+      arrow.castShadow = true;
+      startGroup?.add(arrow);
+    });
+    scene.add(startGroup);
+  }
+
+  function isMoveKey(code: string): boolean {
+    return (
+      code === "KeyW" ||
+      code === "KeyA" ||
+      code === "KeyS" ||
+      code === "KeyD" ||
+      code === "ArrowUp" ||
+      code === "ArrowDown" ||
+      code === "ArrowLeft" ||
+      code === "ArrowRight"
+    );
+  }
+
+  function computeMoveDirection(): THREE.Vector2 {
+    moveDirection.set(0, 0);
+    if (!inputState.enabled || !currentMap) {
+      return moveDirection;
+    }
+
+    if (inputState.keys.has("KeyA") || inputState.keys.has("ArrowLeft")) {
+      moveDirection.x -= 1;
+    }
+    if (inputState.keys.has("KeyD") || inputState.keys.has("ArrowRight")) {
+      moveDirection.x += 1;
+    }
+    if (inputState.keys.has("KeyW") || inputState.keys.has("ArrowUp")) {
+      moveDirection.y -= 1;
+    }
+    if (inputState.keys.has("KeyS") || inputState.keys.has("ArrowDown")) {
+      moveDirection.y += 1;
+    }
+
+    if (inputState.pointerInside) {
+      const margin = settings.camera.edgeThreshold;
+      const width = Math.max(1, window.innerWidth);
+      const height = Math.max(1, window.innerHeight);
+      const px = inputState.pointer.x;
+      const py = inputState.pointer.y;
+      if (px <= margin) {
+        moveDirection.x -= 1 - px / margin;
+      } else if (px >= width - margin) {
+        moveDirection.x += 1 - (width - px) / margin;
+      }
+      if (py <= margin) {
+        moveDirection.y -= 1 - py / margin;
+      } else if (py >= height - margin) {
+        moveDirection.y += 1 - (height - py) / margin;
+      }
+    }
+
+    return moveDirection;
+  }
+
+  function applyMovement(deltaSeconds: number): void {
+    if (!currentMap || !inputState.enabled) {
+      return;
+    }
+    const direction = computeMoveDirection();
+    if (direction.lengthSq() > 1) {
+      direction.normalize();
+    }
+    if (direction.lengthSq() === 0) {
+      return;
+    }
+    const speed = settings.camera.panSpeed;
+    desiredTarget.x += direction.x * speed * deltaSeconds;
+    desiredTarget.z += direction.y * speed * deltaSeconds;
+    clampTarget(desiredTarget);
+  }
+
+  function updateCamera(deltaSeconds: number): void {
+    const zoomLerp = 1 - Math.exp(-deltaSeconds * settings.camera.zoomSmoothing);
+    distance += (targetDistance - distance) * zoomLerp;
+    distance = THREE.MathUtils.clamp(
+      distance,
+      settings.camera.minDistance,
+      settings.camera.maxDistance,
+    );
+    const panLerp = 1 - Math.exp(-deltaSeconds * settings.camera.panSmoothing);
+    if (panLerp > 0) {
+      cameraTarget.lerp(desiredTarget, panLerp);
+    } else {
+      cameraTarget.copy(desiredTarget);
+    }
+    clampTarget(cameraTarget);
+
+    const horizontal = Math.cos(tilt) * distance;
+    const vertical = Math.sin(tilt) * distance;
+    camera.position.set(
+      cameraTarget.x,
+      cameraTarget.y + vertical,
+      cameraTarget.z + horizontal,
+    );
+    camera.lookAt(cameraTarget);
   }
 
   function resize(): void {
     const width = canvas.clientWidth || canvas.width;
-    const height = canvas.clientHeight || canvas.height;
+    const height = canvas.clientHeight || canvas.height || 1;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const needResize =
+    if (
       canvas.width !== Math.floor(width * dpr) ||
-      canvas.height !== Math.floor(height * dpr);
-    if (needResize) {
+      canvas.height !== Math.floor(height * dpr)
+    ) {
       renderer.setSize(width, height, false);
     }
     renderer.setPixelRatio(dpr);
-    const aspect = height > 0 ? width / height : 1;
-    camera.aspect = aspect;
+    camera.aspect = Math.max(1e-4, width / height);
     camera.updateProjectionMatrix();
-
-    const hudDpr = Math.min(window.devicePixelRatio || 1, 2);
-    const targetHudWidth = Math.floor(1024 * hudDpr);
-    const targetHudHeight = Math.floor(256 * hudDpr);
-    if (
-      hudCanvas.width !== targetHudWidth ||
-      hudCanvas.height !== targetHudHeight
-    ) {
-      hudCanvas.width = targetHudWidth;
-      hudCanvas.height = targetHudHeight;
-      paintHud(currentScore);
-    }
-
-    hudCamera.left = -aspect;
-    hudCamera.right = aspect;
-    hudCamera.top = 1;
-    hudCamera.bottom = -1;
-    hudCamera.updateProjectionMatrix();
-
-    const hudWidth = Math.min(aspect * 1.6, 1.8);
-    const hudHeight = hudWidth * (hudCanvas.height / hudCanvas.width);
-    hudPlane.scale.set(hudWidth, hudHeight, 1);
-    const hudMargin = 0.05;
-    const hudX = -aspect + hudWidth * 0.5 + hudMargin;
-    const hudY = 1 - hudHeight * 0.5 - hudMargin;
-    hudPlane.position.set(hudX, hudY, 0);
   }
 
   function render(): void {
     resize();
     const now = performance.now();
-    const deltaSeconds = (now - lastPhysicsStep) / 1000;
-    lastPhysicsStep = now;
-    if (explosionActive) {
-      world.step(1 / 60, deltaSeconds, 5);
-      for (let i = 0; i < explosionBodies.length; i += 1) {
-        const body = explosionBodies[i];
-        const mesh = snakeMeshes[i];
-        if (!mesh || !body) {
-          continue;
-        }
-        mesh.position.set(
-          body.position.x,
-          body.position.y,
-          body.position.z,
-        );
-        mesh.quaternion.set(
-          body.quaternion.x,
-          body.quaternion.y,
-          body.quaternion.z,
-          body.quaternion.w,
-        );
-      }
-    }
-    renderer.clear();
+    const deltaSeconds = Math.min((now - lastFrame) / 1000, 0.2);
+    lastFrame = now;
+    applyMovement(deltaSeconds);
+    updateCamera(deltaSeconds);
     renderer.render(scene, camera);
-    renderer.clearDepth();
-    renderer.render(hudScene, hudCamera);
   }
 
+  function onWheel(event: WheelEvent): void {
+    if (!inputState.enabled) {
+      return;
+    }
+    event.preventDefault();
+    const zoomStep = event.deltaY * 0.01;
+    targetDistance = THREE.MathUtils.clamp(
+      targetDistance + zoomStep,
+      settings.camera.minDistance,
+      settings.camera.maxDistance,
+    );
+  }
+
+  function onPointerMove(event: PointerEvent): void {
+    inputState.pointer.set(event.clientX, event.clientY);
+    inputState.pointerInside = true;
+  }
+
+  function onPointerLeave(): void {
+    inputState.pointerInside = false;
+  }
+
+  function onKeyDown(event: KeyboardEvent): void {
+    if (!isMoveKey(event.code) || !inputState.enabled) {
+      return;
+    }
+    inputState.keys.add(event.code);
+    event.preventDefault();
+  }
+
+  function onKeyUp(event: KeyboardEvent): void {
+    if (!isMoveKey(event.code) || !inputState.enabled) {
+      return;
+    }
+    inputState.keys.delete(event.code);
+    event.preventDefault();
+  }
+
+  function onWindowBlur(): void {
+    inputState.keys.clear();
+  }
+
+  function setInputEnabled(enabled: boolean): void {
+    inputState.enabled = enabled;
+    if (!enabled) {
+      inputState.keys.clear();
+    }
+  }
+
+  function setMap(map: MapDefinition): void {
+    buildTerrain(map);
+    buildResourceSpots(map);
+    buildStartLocations(map);
+    targetDistance = settings.camera.defaultDistance;
+    distance = targetDistance;
+  }
+
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerleave", onPointerLeave);
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("blur", onWindowBlur);
+
   return {
+    setMap,
     render,
-    updateSnake,
-    updateApple,
-    updateEnemies,
-    updateScore,
-    startExplosion,
-    stopExplosion,
     resize,
+    setInputEnabled,
+    dispose: () => {
+      canvas.removeEventListener("wheel", onWheel);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onWindowBlur);
+      renderer.dispose();
+      disposeGroup(resourceGroup);
+      disposeGroup(startGroup);
+      resourceGroup = null;
+      startGroup = null;
+      if (terrain) {
+        terrain.geometry.dispose();
+        if (terrain.material instanceof THREE.Material) {
+          terrain.material.dispose();
+        }
+      }
+      if (grid) {
+        grid.geometry.dispose();
+        if (grid.material instanceof THREE.Material) {
+          grid.material.dispose();
+        }
+      }
+    },
   };
 }
