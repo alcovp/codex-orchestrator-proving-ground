@@ -14,6 +14,7 @@ import type {
   MapDefinition,
   PlayerState,
   Selection,
+  SelectionGroup,
   StartLocation,
   UnitOrder,
   UnitState,
@@ -166,22 +167,19 @@ export function updateGameWorld(world: GameWorld, now: number): void {
 
 export function issueOrder(
   world: GameWorld,
-  selection: Selection | null,
+  selection: SelectionGroup,
   order: UnitOrder,
   now: number,
 ): boolean {
-  if (!selection) {
+  if (!selection.length) {
     return false;
   }
-  const entity = findSelection(world, selection);
-  if (!entity || "queue" in entity) {
+  const units = selection
+    .map((item) => findSelection(world, item))
+    .filter((entity): entity is UnitState => !!entity && !("queue" in entity) && entity.owner === "player");
+  if (!units.length) {
     return false;
   }
-  if (entity.owner !== "player") {
-    return false;
-  }
-  const unit = entity;
-  ensureBehavior(unit, now);
   if (order.kind === "attackTarget") {
     const target =
       order.targetKind === "unit"
@@ -191,8 +189,11 @@ export function issueOrder(
       return false;
     }
   }
-  setOrder(unit, order, now);
-  resetWorkerHarvest(unit);
+  units.forEach((unit) => {
+    ensureBehavior(unit, now);
+    setOrder(unit, order, now);
+    resetWorkerHarvest(unit);
+  });
   if (order.kind === "move") {
     world.statusMessage = "Приказ: движение.";
   } else if (order.kind === "attackMove") {

@@ -1,11 +1,14 @@
 import { createWorldScene } from "./scene";
 import { maps, worldSettings } from "./settings";
 import type {
+  BuildingState,
   GamePhase,
   GameSession,
   GameWorld,
   MapDefinition,
   Selection,
+  SelectionGroup,
+  UnitState,
 } from "./types";
 import { createGameWorld, findSelection, issueOrder, updateGameWorld } from "./world";
 
@@ -194,7 +197,7 @@ let phase: GamePhase = "menu";
 let session: GameSession | null = null;
 let preparedMap: MapDefinition | null = initialMap ?? null;
 let world: GameWorld | null = null;
-let currentSelection: Selection | null = null;
+let currentSelection: SelectionGroup = [];
 let isDraggingSelection = false;
 let selectionStart: { x: number; y: number } | null = null;
 let activePanel: HTMLElement | null = null;
@@ -216,6 +219,32 @@ function updateMapMeta(map: MapDefinition | null): void {
   const deposits = map.resources.length;
   const starts = map.startLocations.length;
   mapDetails.textContent = `${map.name}: ${map.size.width}×${map.size.height}, стартовых позиций — ${starts}, залежей спайса — ${deposits}.`;
+}
+
+function selectionKey(sel: Selection): string {
+  return `${sel.kind}:${sel.id}`;
+}
+
+function mergeSelections(base: SelectionGroup, additions: SelectionGroup): SelectionGroup {
+  const seen = new Set(base.map((item) => selectionKey(item)));
+  const result = [...base];
+  additions.forEach((item) => {
+    const key = selectionKey(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
+  });
+  return result;
+}
+
+function toggleSelection(base: SelectionGroup, target: Selection): SelectionGroup {
+  const key = selectionKey(target);
+  const exists = base.some((item) => selectionKey(item) === key);
+  if (exists) {
+    return base.filter((item) => selectionKey(item) !== key);
+  }
+  return [...base, target];
 }
 
 function updateSessionStatus(state: GamePhase | "ended"): void {
@@ -352,19 +381,71 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   hudSpice.textContent = `${Math.floor(player.spice)} спайс`;
   hudPower.textContent = `${Math.floor(player.power)} энергия`;
 
-  const target = currentSelection ? findSelection(worldState, currentSelection) : null;
-  const targetVisible =
-    target &&
-    (target.owner === "player" || isVisibleToPlayer(worldState, target.position));
-  if (!target || !targetVisible) {
+  const resolvedSelections = currentSelection
+    .map((item) => {
+      const entity = findSelection(worldState, item);
+      return entity ? { selection: item, entity } : null;
+    })
+    .filter(
+      (entry): entry is { selection: Selection; entity: UnitState | BuildingState } =>
+        !!entry && !!entry.entity,
+    );
+
+  const visibleSelections = resolvedSelections.filter(({ entity }) => {
+    if (!entity) {
+      return false;
+    }
+    return entity.owner === "player" || isVisibleToPlayer(worldState, entity.position);
+  });
+
+  if (!visibleSelections.length) {
     hudSelectionName.textContent = "Ничего не выбрано";
-    hudSelectionDetails.textContent = target
+    hudSelectionDetails.textContent = resolvedSelections.length
       ? "Цель скрыта туманом войны."
       : "Кликните по объекту на поле.";
     hudProduction.textContent = "";
     return;
   }
 
+  const units = visibleSelections.filter((entry) => entry.entity && !("queue" in entry.entity));
+  const buildings = visibleSelections.filter((entry) => entry.entity && "queue" in entry.entity);
+
+  if (visibleSelections.length > 1) {
+    if (units.length && !buildings.length) {
+      const counts = units.reduce<Record<string, number>>((acc, entry) => {
+        const unit = entry.entity;
+        if (unit && !("queue" in unit)) {
+          acc[unit.typeId] = (acc[unit.typeId] ?? 0) + 1;
+        }
+        return acc;
+      }, {});
+      const breakdown = Object.entries(counts)
+        .map(([typeId, count]) => `${worldState.defs.units[typeId as keyof typeof worldState.defs.units].name} ×${count}`)
+        .join(", ");
+      hudSelectionName.textContent = `Выбрано юнитов: ${units.length}`;
+      hudSelectionDetails.textContent = breakdown || "Несколько юнитов.";
+    } else if (buildings.length && !units.length) {
+      const counts = buildings.reduce<Record<string, number>>((acc, entry) => {
+        const building = entry.entity;
+        if (building && "queue" in building) {
+          acc[building.typeId] = (acc[building.typeId] ?? 0) + 1;
+        }
+        return acc;
+      }, {});
+      const breakdown = Object.entries(counts)
+        .map(([typeId, count]) => `${worldState.defs.buildings[typeId as keyof typeof worldState.defs.buildings].name} ×${count}`)
+        .join(", ");
+      hudSelectionName.textContent = `Выбрано зданий: ${buildings.length}`;
+      hudSelectionDetails.textContent = breakdown || "Несколько зданий.";
+    } else {
+      hudSelectionName.textContent = `Выбрано: юнитов ${units.length}, зданий ${buildings.length}`;
+      hudSelectionDetails.textContent = "Приказы применяются только к юнитам.";
+    }
+    hudProduction.textContent = "";
+    return;
+  }
+
+  const target = visibleSelections[0]!.entity!;
   if ("queue" in target) {
     const def = worldState.defs.buildings[target.typeId];
     hudSelectionName.textContent = `${def.name} (${target.owner === "player" ? "Вы" : "ИИ"})`;
@@ -425,7 +506,7 @@ function startSession(mapOverride?: MapDefinition | null): void {
   closePanel();
   updateOutcomeOverlay(null);
   world = createGameWorld(map, performance.now());
-  currentSelection = null;
+  currentSelection = [];
   scene.setMap(map);
   scene.updateWorld(world, currentSelection);
   session = { map, startedAt: performance.now() };
@@ -436,7 +517,7 @@ function startSession(mapOverride?: MapDefinition | null): void {
 function backToMenu(): void {
   session = null;
   world = null;
-  currentSelection = null;
+  currentSelection = [];
   preparedMap = initialMap ?? null;
   updateOutcomeOverlay(null);
   hintsDismissed = false;
@@ -466,6 +547,13 @@ function updateSelectionDrag(event: PointerEvent): void {
     return;
   }
   showSelectionRect(selectionStart, { x: event.clientX, y: event.clientY });
+  if (selectionRect.dataset.active === "true") {
+    const rect = selectionRect.getBoundingClientRect();
+    const hovered = scene.pickInRect(rect);
+    scene.setHover(hovered);
+  } else {
+    scene.setHover([]);
+  }
 }
 
 function endSelectionDrag(event?: PointerEvent): void {
@@ -475,6 +563,7 @@ function endSelectionDrag(event?: PointerEvent): void {
   isDraggingSelection = false;
   selectionStart = null;
   hideSelectionRect();
+  scene.usePointerHover();
 }
 
 function onCanvasPointerUp(event: PointerEvent): void {
@@ -482,7 +571,7 @@ function onCanvasPointerUp(event: PointerEvent): void {
     return;
   }
   if (event.button === 2) {
-    if (world && currentSelection) {
+    if (world && currentSelection.length) {
       issueOrderFromPointer(event);
     }
     return;
@@ -495,48 +584,61 @@ function onCanvasPointerUp(event: PointerEvent): void {
     const rect = selectionRect.getBoundingClientRect();
     endSelectionDrag(event);
     if (world && wasActive) {
-      currentSelection = scene.pickInRect(rect);
+      const rectSelection = scene.pickInRect(rect);
+      if (event.ctrlKey) {
+        currentSelection = mergeSelections(currentSelection, rectSelection);
+      } else {
+        currentSelection = rectSelection;
+      }
       scene.updateWorld(world, currentSelection);
       updateHud(world.map, world);
       return;
     }
   }
   if (world) {
-    currentSelection = scene.pick(event.clientX, event.clientY);
+    const picked = scene.pick(event.clientX, event.clientY);
+    if (picked) {
+      currentSelection = event.ctrlKey ? toggleSelection(currentSelection, picked) : [picked];
+    } else if (!event.ctrlKey) {
+      currentSelection = [];
+    }
     scene.updateWorld(world, currentSelection);
     updateHud(world.map, world);
   }
 }
 
 function issueOrderFromPointer(event: PointerEvent): void {
-  if (!world || !currentSelection) {
+  if (!world || !currentSelection.length) {
     return;
   }
-  const selected = findSelection(world, currentSelection);
-  if (!selected || "queue" in selected || selected.owner !== "player") {
+  const worldState = world;
+  const playerUnits = currentSelection
+    .map((item) => findSelection(worldState, item))
+    .filter((entity): entity is UnitState => !!entity && !("queue" in entity) && entity.owner === "player");
+  if (!playerUnits.length) {
     return;
   }
   event.preventDefault();
   const now = performance.now();
   const picked = scene.pick(event.clientX, event.clientY);
   if (picked) {
-    const target = findSelection(world, picked);
+    const target = findSelection(worldState, picked);
     if (target && target.owner !== "player") {
       const targetKind = "queue" in target ? "building" : "unit";
       issueOrder(
-        world,
+        worldState,
         currentSelection,
         { kind: "attackTarget", targetId: target.id, targetKind },
         now,
       );
-      updateHud(world.map, world);
+      updateHud(worldState.map, worldState);
       return;
     }
   }
   const ground = scene.projectToGround(event.clientX, event.clientY);
   if (ground) {
-    issueOrder(world, currentSelection, { kind: "attackMove", target: ground }, now);
-    updateHud(world.map, world);
+    issueOrder(worldState, currentSelection, { kind: "attackMove", target: ground }, now);
+    updateHud(worldState.map, worldState);
   }
 }
 
@@ -608,16 +710,17 @@ function renderLoop(): void {
   }
   const now = performance.now();
   if (phase === "playing" && world) {
-    updateGameWorld(world, now);
-    const resolved = currentSelection ? findSelection(world, currentSelection) : null;
-    const visible =
-      resolved &&
-      (resolved.owner === "player" || isVisibleToPlayer(world, resolved.position));
-    if (!resolved || !visible) {
-      currentSelection = null;
-    }
-    scene.updateWorld(world, currentSelection);
-    updateHud(world.map, world);
+    const worldState = world;
+    updateGameWorld(worldState, now);
+    currentSelection = currentSelection.filter((item) => {
+      const resolved = findSelection(worldState, item);
+      if (!resolved) {
+        return false;
+      }
+      return resolved.owner === "player" || isVisibleToPlayer(worldState, resolved.position);
+    });
+    scene.updateWorld(worldState, currentSelection);
+    updateHud(worldState.map, worldState);
   }
   scene.render();
   window.requestAnimationFrame(renderLoop);

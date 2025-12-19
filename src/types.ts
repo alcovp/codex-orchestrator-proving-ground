@@ -190,6 +190,8 @@ export type Selection =
   | { kind: "unit"; id: string }
   | { kind: "building"; id: string };
 
+export type SelectionGroup = Selection[];
+
 export type AiState = {
   waveNumber: number;
   nextWaveAt: number;

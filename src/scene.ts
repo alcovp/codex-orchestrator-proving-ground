@@ -7,6 +7,7 @@ import type {
   GameWorld,
   MapDefinition,
   Selection,
+  SelectionGroup,
   UnitState,
   WorldSettings,
 } from "./types";
@@ -17,10 +18,12 @@ export type WorldScene = {
   resize(): void;
   setInputEnabled(enabled: boolean): void;
   setCameraSensitivity(multiplier: number): void;
-  updateWorld(world: GameWorld, selection: Selection | null): void;
+  updateWorld(world: GameWorld, selection: SelectionGroup): void;
   pick(screenX: number, screenY: number): Selection | null;
-  pickInRect(rect: DOMRect): Selection | null;
+  pickInRect(rect: DOMRect): SelectionGroup;
   projectToGround(screenX: number, screenY: number): { x: number; z: number } | null;
+  setHover(selection: SelectionGroup): void;
+  usePointerHover(): void;
   dispose(): void;
 };
 
@@ -111,7 +114,10 @@ export function createWorldScene(
 
   const healthTempQuat = new THREE.Quaternion();
   const healthParentQuat = new THREE.Quaternion();
-  let hoverSelection: Selection | null = null;
+  type SelectionLookup = { units: Set<string>; buildings: Set<string> };
+
+  let hoverSelection: SelectionLookup = { units: new Set(), buildings: new Set() };
+  let hoverMode: "pointer" | "manual" = "pointer";
 
   const cameraTarget = new THREE.Vector3();
   const desiredTarget = new THREE.Vector3();
@@ -398,19 +404,36 @@ export function createWorldScene(
     return group;
   }
 
-  function setHover(selection: Selection | null): void {
-    hoverSelection = selection;
+  function applyHoverVisibility(): void {
     buildingMeshes.forEach((entry, id) => {
       entry.hover.visible =
-        !!selection &&
-        selection.kind === "building" &&
-        selection.id === id &&
+        hoverSelection.buildings.has(id) &&
         entry.group.visible;
     });
     unitMeshes.forEach((entry, id) => {
-      entry.hover.visible =
-        !!selection && selection.kind === "unit" && selection.id === id && entry.group.visible;
+      entry.hover.visible = hoverSelection.units.has(id) && entry.group.visible;
     });
+  }
+
+  function setHover(selection: Selection | null): void {
+    hoverMode = "pointer";
+    if (selection) {
+      hoverSelection = createSelectionLookup([selection]);
+    } else {
+      hoverSelection = { units: new Set(), buildings: new Set() };
+    }
+    applyHoverVisibility();
+  }
+
+  function setHoverGroup(selection: SelectionGroup): void {
+    hoverMode = "manual";
+    hoverSelection = createSelectionLookup(selection);
+    applyHoverVisibility();
+  }
+
+  function usePointerHover(): void {
+    hoverMode = "pointer";
+    updateHoverFromPointer();
   }
 
   function disposeEntityMesh(entry: EntityMeshEntry): void {
@@ -614,7 +637,20 @@ export function createWorldScene(
     return vision.visible[idx] === 1;
   }
 
-  function syncBuildingMeshes(world: GameWorld, selection: Selection | null): void {
+  function createSelectionLookup(selection: SelectionGroup): SelectionLookup {
+    const units = new Set<string>();
+    const buildings = new Set<string>();
+    selection.forEach((item) => {
+      if (item.kind === "unit") {
+        units.add(item.id);
+      } else {
+        buildings.add(item.id);
+      }
+    });
+    return { units, buildings };
+  }
+
+  function syncBuildingMeshes(world: GameWorld, selection: SelectionLookup): void {
     const seen = new Set<string>();
     world.buildings.forEach((building) => {
       seen.add(building.id);
@@ -634,13 +670,8 @@ export function createWorldScene(
       updateHealthBar(entry.health, hpRatio);
       faceCamera(entry.health, entry.group);
       entry.health.group.visible = visible;
-      entry.hover.visible =
-        hoverSelection?.kind === "building" && hoverSelection.id === building.id && visible;
-      syncSelectionHighlight(
-        entry,
-        selection?.id === building.id && selection.kind === "building",
-        visible,
-      );
+      entry.hover.visible = hoverSelection.buildings.has(building.id) && visible;
+      syncSelectionHighlight(entry, selection.buildings.has(building.id), visible);
     });
 
     buildingMeshes.forEach((entry, id) => {
@@ -651,7 +682,7 @@ export function createWorldScene(
     });
   }
 
-  function syncUnitMeshes(world: GameWorld, selection: Selection | null): void {
+  function syncUnitMeshes(world: GameWorld, selection: SelectionLookup): void {
     const seen = new Set<string>();
     world.units.forEach((unit) => {
       seen.add(unit.id);
@@ -670,12 +701,8 @@ export function createWorldScene(
       updateHealthBar(entry.health, hpRatio);
       faceCamera(entry.health, entry.group);
       entry.health.group.visible = visible;
-      entry.hover.visible = hoverSelection?.kind === "unit" && hoverSelection.id === unit.id && visible;
-      syncSelectionHighlight(
-        entry,
-        selection?.id === unit.id && selection.kind === "unit",
-        visible,
-      );
+      entry.hover.visible = hoverSelection.units.has(unit.id) && visible;
+      syncSelectionHighlight(entry, selection.units.has(unit.id), visible);
     });
 
     unitMeshes.forEach((entry, id) => {
@@ -744,18 +771,19 @@ export function createWorldScene(
     fogTexture.needsUpdate = true;
     const geometry = new THREE.PlaneGeometry(currentMap.size.width, currentMap.size.height, 1, 1);
     const material = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0x0a0e19),
+      color: new THREE.Color(0x05060b),
       transparent: true,
       depthWrite: false,
       depthTest: false,
       opacity: 1,
       alphaMap: fogTexture,
+      blending: THREE.MultiplyBlending,
       side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = 0.32;
-    mesh.renderOrder = 3;
+    mesh.renderOrder = 100;
     fogMesh = mesh;
     scene.add(mesh);
   }
@@ -780,7 +808,7 @@ export function createWorldScene(
       if (visible[i]) {
         alpha = 0;
       } else if (explored[i]) {
-        alpha = 200;
+        alpha = 220;
       }
       fogData[i] = alpha;
     }
@@ -822,6 +850,9 @@ export function createWorldScene(
   }
 
   function updateHoverFromPointer(): void {
+    if (hoverMode !== "pointer") {
+      return;
+    }
     if (!inputState.enabled || !inputState.pointerInside) {
       setHover(null);
       return;
@@ -847,18 +878,14 @@ export function createWorldScene(
     return { x: groundPoint.x, z: groundPoint.z };
   }
 
-  function pickInRect(rect: DOMRect): Selection | null {
+  function pickInRect(rect: DOMRect): SelectionGroup {
     if (!rect.width || !rect.height) {
-      return null;
+      return [];
     }
     const view = renderer.domElement.getBoundingClientRect();
-    const candidates: Array<{ selection: Selection; screen: { x: number; y: number } }> = [];
+    const selected: SelectionGroup = [];
 
-    function addCandidate(
-      id: string,
-      kind: Selection["kind"],
-      position: THREE.Vector3,
-    ): void {
+    function addUnitCandidate(id: string, position: THREE.Vector3): void {
       const projected = position.clone().project(camera);
       const screenX = ((projected.x + 1) / 2) * view.width + view.left;
       const screenY = ((-projected.y + 1) / 2) * view.height + view.top;
@@ -868,44 +895,17 @@ export function createWorldScene(
         screenY >= rect.top &&
         screenY <= rect.bottom
       ) {
-        candidates.push({
-          selection: { kind, id },
-          screen: { x: screenX, y: screenY },
-        });
+        selected.push({ kind: "unit", id });
       }
     }
 
-    buildingMeshes.forEach((entry, id) => {
-      const pos = new THREE.Vector3();
-      pos.setFromMatrixPosition(entry.group.matrixWorld);
-      addCandidate(id, "building", pos);
-    });
     unitMeshes.forEach((entry, id) => {
       const pos = new THREE.Vector3();
       pos.setFromMatrixPosition(entry.group.matrixWorld);
-      addCandidate(id, "unit", pos);
+      addUnitCandidate(id, pos);
     });
 
-    if (!candidates.length) {
-      return null;
-    }
-
-    // Prefer units first, then buildings. Pick the one nearest to the center of the rectangle.
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    candidates.sort((a, b) => {
-      if (a.selection.kind !== b.selection.kind) {
-        return a.selection.kind === "unit" ? -1 : 1;
-      }
-      const da =
-        (a.screen.x - centerX) * (a.screen.x - centerX) +
-        (a.screen.y - centerY) * (a.screen.y - centerY);
-      const db =
-        (b.screen.x - centerX) * (b.screen.x - centerX) +
-        (b.screen.y - centerY) * (b.screen.y - centerY);
-      return da - db;
-    });
-    return candidates[0]?.selection ?? null;
+    return selected;
   }
 
   function isMoveKey(code: string): boolean {
@@ -1107,10 +1107,11 @@ export function createWorldScene(
         settings.camera.panSpeed * 3,
       );
     },
-    updateWorld: (world: GameWorld, selection: Selection | null) => {
+    updateWorld: (world: GameWorld, selection: SelectionGroup) => {
+      const selectionLookup = createSelectionLookup(selection);
       syncResourceMeshes(world);
-      syncBuildingMeshes(world, selection);
-      syncUnitMeshes(world, selection);
+      syncBuildingMeshes(world, selectionLookup);
+      syncUnitMeshes(world, selectionLookup);
       syncFog(world);
       rebuildPickTargets();
       updateHoverFromPointer();
@@ -1118,6 +1119,10 @@ export function createWorldScene(
     pick,
     pickInRect,
     projectToGround,
+    setHover: (selection: SelectionGroup) => {
+      setHoverGroup(selection);
+    },
+    usePointerHover,
     dispose: () => {
       canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("pointermove", onPointerMove);
