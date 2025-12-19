@@ -166,8 +166,17 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
     return;
   }
   const player = worldState.players.player;
-  hudStatus.textContent =
-    "База развернута: штаб, казармы, стартовые юниты и очередь на производство.";
+  const activeNodes = worldState.resourceNodes.filter((node) => node.amount > 1);
+  const minUnitCost = Math.min(
+    ...Object.values(worldState.defs.units).map((def) => def.cost.spice),
+  );
+  let status = "Добыча спайса идет.";
+  if (!activeNodes.length) {
+    status = "Залежи спайса исчерпаны. Добыча остановлена.";
+  } else if (player.spice < minUnitCost) {
+    status = `Недостаточно спайса: минимум ${minUnitCost} для заказа юнитов.`;
+  }
+  hudStatus.textContent = `${status} ${baseHint}`;
   hudSpice.textContent = `${Math.floor(player.spice)} спайс`;
   hudPower.textContent = `${Math.floor(player.power)} энергия`;
 

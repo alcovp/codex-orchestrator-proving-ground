@@ -61,6 +61,8 @@ export type UnitDefinition = {
   buildTime: number;
   moveSpeed: number;
   cost: { spice: number; power?: number };
+  harvestRate?: number;
+  carryCapacity?: number;
 };
 
 export type BuildingDefinition = {
@@ -71,6 +73,7 @@ export type BuildingDefinition = {
   produces: UnitTypeId[];
   queueLimit: number;
   cost: { spice: number; power?: number };
+  isRefinery?: boolean;
 };
 
 export type ProductionQueueItem = {
@@ -122,6 +125,7 @@ export type ResourceNodeState = {
   radius: number;
   richness: number;
   amount: number;
+  maxAmount: number;
 };
 
 export type Selection =
@@ -139,4 +143,5 @@ export type GameWorld = {
     buildings: Record<BuildingTypeId, BuildingDefinition>;
   };
   lastTick: number;
+  statusMessage?: string;
 };
