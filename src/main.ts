@@ -491,9 +491,10 @@ function onCanvasPointerUp(event: PointerEvent): void {
     return;
   }
   if (isDraggingSelection) {
+    const wasActive = selectionRect.dataset.active === "true";
+    const rect = selectionRect.getBoundingClientRect();
     endSelectionDrag(event);
-    if (world && selectionRect.dataset.active === "true") {
-      const rect = selectionRect.getBoundingClientRect();
+    if (world && wasActive) {
       currentSelection = scene.pickInRect(rect);
       scene.updateWorld(world, currentSelection);
       updateHud(world.map, world);

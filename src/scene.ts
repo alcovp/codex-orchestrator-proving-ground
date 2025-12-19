@@ -72,14 +72,8 @@ export function createWorldScene(
     string,
     { body: THREE.Mesh; ring: THREE.Mesh; maxAmount: number }
   >();
-  const buildingMeshes = new Map<
-    string,
-    { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh }
-  >();
-  const unitMeshes = new Map<
-    string,
-    { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh }
-  >();
+  const buildingMeshes = new Map<string, EntityMeshEntry>();
+  const unitMeshes = new Map<string, EntityMeshEntry>();
   let fogMesh: THREE.Mesh | null = null;
   let fogTexture: THREE.DataTexture | null = null;
   let fogData: Uint8Array | null = null;
@@ -98,6 +92,26 @@ export function createWorldScene(
     player: 0x1c6bb0,
     ai: 0x8c2d1e,
   };
+
+  type HealthBarInstance = {
+    group: THREE.Group;
+    fill: THREE.Mesh;
+    bg: THREE.Mesh;
+    width: number;
+    offsetY: number;
+  };
+
+  type EntityMeshEntry = {
+    group: THREE.Group;
+    body: THREE.Mesh;
+    ring: THREE.Mesh;
+    health: HealthBarInstance;
+    hover: THREE.Group;
+  };
+
+  const healthTempQuat = new THREE.Quaternion();
+  const healthParentQuat = new THREE.Quaternion();
+  let hoverSelection: Selection | null = null;
 
   const cameraTarget = new THREE.Vector3();
   const desiredTarget = new THREE.Vector3();
@@ -316,7 +330,90 @@ export function createWorldScene(
     return mesh;
   }
 
-  function disposeEntityMesh(entry: { group: THREE.Group; ring: THREE.Mesh; body: THREE.Mesh }): void {
+  function createHealthBar(owner: FactionId, width: number, offsetY: number): HealthBarInstance {
+    const group = new THREE.Group();
+    group.position.y = offsetY;
+    group.renderOrder = 5;
+
+    const bgMaterial = new THREE.MeshBasicMaterial({
+      color: 0x1c1914,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const fillMaterial = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(factionTint[owner]),
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      depthTest: false,
+    });
+
+    const bg = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), bgMaterial);
+    bg.scale.set(width + 0.14, 0.2, 1);
+    bg.position.z = 0.001;
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), fillMaterial);
+    fill.scale.set(width, 0.12, 1);
+    fill.position.z = 0.002;
+    group.add(bg);
+    group.add(fill);
+
+    return { group, fill, bg, width, offsetY };
+  }
+
+  function updateHealthBar(bar: HealthBarInstance, ratio: number): void {
+    const clamped = THREE.MathUtils.clamp(ratio, 0, 1);
+    bar.fill.scale.x = bar.width * clamped;
+    bar.fill.position.x = (clamped - 1) * (bar.width * 0.5);
+  }
+
+  function faceCamera(bar: HealthBarInstance, parent: THREE.Group): void {
+    parent.getWorldQuaternion(healthParentQuat);
+    healthParentQuat.invert();
+    healthTempQuat.copy(camera.quaternion);
+    bar.group.quaternion.copy(healthParentQuat.multiply(healthTempQuat));
+  }
+
+  function createHoverOutline(meshes: THREE.Mesh[], owner: FactionId): THREE.Group {
+    const group = new THREE.Group();
+    meshes.forEach((mesh) => {
+      const outlineMaterial = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(factionTint[owner]),
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const geom = mesh.geometry.clone();
+      const clone = new THREE.Mesh(geom, outlineMaterial);
+      clone.position.copy(mesh.position);
+      clone.rotation.copy(mesh.rotation);
+      clone.scale.copy(mesh.scale).multiplyScalar(1.1);
+      clone.renderOrder = 6;
+      group.add(clone);
+    });
+    group.visible = false;
+    return group;
+  }
+
+  function setHover(selection: Selection | null): void {
+    hoverSelection = selection;
+    buildingMeshes.forEach((entry, id) => {
+      entry.hover.visible =
+        !!selection &&
+        selection.kind === "building" &&
+        selection.id === id &&
+        entry.group.visible;
+    });
+    unitMeshes.forEach((entry, id) => {
+      entry.hover.visible =
+        !!selection && selection.kind === "unit" && selection.id === id && entry.group.visible;
+    });
+  }
+
+  function disposeEntityMesh(entry: EntityMeshEntry): void {
     entry.group.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
         obj.geometry.dispose();
@@ -330,10 +427,7 @@ export function createWorldScene(
     scene.remove(entry.group);
   }
 
-  function makeBuildingMesh(
-    building: BuildingState,
-    def: BuildingDefinition,
-  ): { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh } {
+  function makeBuildingMesh(building: BuildingState, def: BuildingDefinition): EntityMeshEntry {
     const group = new THREE.Group();
     const baseRadius = def.size * 0.5;
     const bodyGeometry = new THREE.CylinderGeometry(
@@ -373,14 +467,26 @@ export function createWorldScene(
     const ring = createSelectionRing(baseRadius * 0.95, factionTint[building.owner]);
     group.add(ring);
 
+    const barWidth = Math.max(2.4, def.size * 0.6);
+    const barOffset = Math.max(3, def.size * 0.45 + 1.4);
+    const health = createHealthBar(building.owner, barWidth, barOffset);
+    group.add(health.group);
+
+    const hover = createHoverOutline([body, cap], building.owner);
+    group.add(hover);
+
     group.position.set(building.position.x, 0, building.position.z);
     group.rotation.y = THREE.MathUtils.degToRad(building.facingDeg);
-    return { group, ring, body };
+    return { group, ring, body, health, hover };
   }
 
-  function makeUnitMesh(unit: UnitState): { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh } {
+  function makeUnitMesh(unit: UnitState): EntityMeshEntry {
     const group = new THREE.Group();
-    const bodyGeometry = new THREE.CylinderGeometry(0.7, 0.7, 1.8, 12);
+    const isWorker = unit.typeId === "worker";
+    const bodyRadiusTop = isWorker ? 0.6 : 0.75;
+    const bodyRadiusBottom = isWorker ? 0.65 : 0.85;
+    const bodyHeight = isWorker ? 1.5 : 1.95;
+    const bodyGeometry = new THREE.CylinderGeometry(bodyRadiusTop, bodyRadiusBottom, bodyHeight, 12);
     const bodyMaterial = new THREE.MeshStandardMaterial({
       color: new THREE.Color(factionTint[unit.owner]),
       emissive: new THREE.Color(factionAccent[unit.owner]),
@@ -393,7 +499,7 @@ export function createWorldScene(
     body.userData.selection = { kind: "unit", id: unit.id };
     group.add(body);
 
-    const headGeometry = new THREE.SphereGeometry(0.5, 14, 12);
+    const headGeometry = new THREE.SphereGeometry(isWorker ? 0.45 : 0.52, 14, 12);
     const headMaterial = new THREE.MeshStandardMaterial({
       color: 0xf5e6c8,
       emissive: new THREE.Color(factionAccent[unit.owner]),
@@ -401,18 +507,82 @@ export function createWorldScene(
       metalness: 0.28,
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 1;
+    head.position.y = bodyHeight * 0.42;
     head.userData.selection = { kind: "unit", id: unit.id };
     head.castShadow = true;
     head.receiveShadow = true;
     group.add(head);
 
+    const hoverParts: THREE.Mesh[] = [body, head];
+
+    if (isWorker) {
+      const pack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.85, 0.65, 0.4),
+        new THREE.MeshStandardMaterial({
+          color: 0xffd57a,
+          emissive: 0x6f4a12,
+          roughness: 0.36,
+          metalness: 0.18,
+        }),
+      );
+      pack.position.set(0, bodyHeight * 0.1, -0.5);
+      pack.rotation.y = THREE.MathUtils.degToRad(18);
+      pack.castShadow = true;
+      pack.receiveShadow = true;
+      group.add(pack);
+      hoverParts.push(pack);
+    } else {
+      const visor = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.26, 0.26, 0.8, 8),
+        new THREE.MeshStandardMaterial({
+          color: 0x25344a,
+          emissive: 0x152131,
+          roughness: 0.3,
+          metalness: 0.38,
+        }),
+      );
+      visor.position.set(0, bodyHeight * 0.22, 0.55);
+      visor.rotation.x = THREE.MathUtils.degToRad(90);
+      visor.userData.selection = { kind: "unit", id: unit.id };
+      visor.castShadow = true;
+      visor.receiveShadow = true;
+      group.add(visor);
+      hoverParts.push(visor);
+
+      const pauldronMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2e4059,
+        emissive: 0x132136,
+        roughness: 0.34,
+        metalness: 0.3,
+      });
+      const pauldronGeometry = new THREE.CapsuleGeometry(0.3, 0.3, 6, 12);
+      const leftPad = new THREE.Mesh(pauldronGeometry, pauldronMaterial);
+      leftPad.position.set(-0.65, bodyHeight * 0.15, 0);
+      leftPad.rotation.z = THREE.MathUtils.degToRad(90);
+      leftPad.castShadow = true;
+      leftPad.receiveShadow = true;
+      leftPad.userData.selection = { kind: "unit", id: unit.id };
+      group.add(leftPad);
+      hoverParts.push(leftPad);
+
+      const rightPad = leftPad.clone();
+      rightPad.position.x = 0.65;
+      group.add(rightPad);
+      hoverParts.push(rightPad);
+    }
+
     const ring = createSelectionRing(1.1, factionTint[unit.owner]);
     group.add(ring);
 
+    const health = createHealthBar(unit.owner, 1.6, 2.2);
+    group.add(health.group);
+
+    const hover = createHoverOutline(hoverParts, unit.owner);
+    group.add(hover);
+
     group.position.set(unit.position.x, 0, unit.position.z);
     group.rotation.y = THREE.MathUtils.degToRad(unit.facingDeg);
-    return { group, ring, body };
+    return { group, ring, body, health, hover };
   }
 
   function syncSelectionHighlight(
@@ -460,6 +630,12 @@ export function createWorldScene(
       entry.group.visible = visible;
       entry.group.position.set(building.position.x, 0, building.position.z);
       entry.group.rotation.y = THREE.MathUtils.degToRad(building.facingDeg);
+      const hpRatio = def.maxHp > 0 ? building.hp / def.maxHp : 0;
+      updateHealthBar(entry.health, hpRatio);
+      faceCamera(entry.health, entry.group);
+      entry.health.group.visible = visible;
+      entry.hover.visible =
+        hoverSelection?.kind === "building" && hoverSelection.id === building.id && visible;
       syncSelectionHighlight(
         entry,
         selection?.id === building.id && selection.kind === "building",
@@ -489,6 +665,12 @@ export function createWorldScene(
       entry.group.visible = visible;
       entry.group.position.set(unit.position.x, 0, unit.position.z);
       entry.group.rotation.y = THREE.MathUtils.degToRad(unit.facingDeg);
+      const def = world.defs.units[unit.typeId];
+      const hpRatio = def?.maxHp ? unit.hp / def.maxHp : 0;
+      updateHealthBar(entry.health, hpRatio);
+      faceCamera(entry.health, entry.group);
+      entry.health.group.visible = visible;
+      entry.hover.visible = hoverSelection?.kind === "unit" && hoverSelection.id === unit.id && visible;
       syncSelectionHighlight(
         entry,
         selection?.id === unit.id && selection.kind === "unit",
@@ -562,17 +744,18 @@ export function createWorldScene(
     fogTexture.needsUpdate = true;
     const geometry = new THREE.PlaneGeometry(currentMap.size.width, currentMap.size.height, 1, 1);
     const material = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0x040404),
+      color: new THREE.Color(0x0a0e19),
       transparent: true,
       depthWrite: false,
-      opacity: 0.94,
+      depthTest: false,
+      opacity: 1,
       alphaMap: fogTexture,
       side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0.24;
-    mesh.renderOrder = 2;
+    mesh.position.y = 0.32;
+    mesh.renderOrder = 3;
     fogMesh = mesh;
     scene.add(mesh);
   }
@@ -597,7 +780,7 @@ export function createWorldScene(
       if (visible[i]) {
         alpha = 0;
       } else if (explored[i]) {
-        alpha = 160;
+        alpha = 200;
       }
       fogData[i] = alpha;
     }
@@ -619,6 +802,8 @@ export function createWorldScene(
         pickTargets.push(entry.body);
       }
     });
+
+    updateHoverFromPointer();
   }
 
   function pick(screenX: number, screenY: number): Selection | null {
@@ -634,6 +819,15 @@ export function createWorldScene(
     }
     const selection = hits[0]!.object.userData.selection as Selection | undefined;
     return selection ?? null;
+  }
+
+  function updateHoverFromPointer(): void {
+    if (!inputState.enabled || !inputState.pointerInside) {
+      setHover(null);
+      return;
+    }
+    const selection = pick(inputState.pointer.x, inputState.pointer.y);
+    setHover(selection);
   }
 
   function projectToGround(
@@ -850,10 +1044,12 @@ export function createWorldScene(
   function onPointerMove(event: PointerEvent): void {
     inputState.pointer.set(event.clientX, event.clientY);
     inputState.pointerInside = true;
+    updateHoverFromPointer();
   }
 
   function onPointerLeave(): void {
     inputState.pointerInside = false;
+    setHover(null);
   }
 
   function onKeyDown(event: KeyboardEvent): void {
@@ -917,6 +1113,7 @@ export function createWorldScene(
       syncUnitMeshes(world, selection);
       syncFog(world);
       rebuildPickTargets();
+      updateHoverFromPointer();
     },
     pick,
     pickInRect,
