@@ -7,7 +7,7 @@ import type {
   MapDefinition,
   Selection,
 } from "./types";
-import { createGameWorld, findSelection, updateGameWorld } from "./world";
+import { createGameWorld, findSelection, issueOrder, updateGameWorld } from "./world";
 
 function requireElement<T extends Element>(el: T | null, name: string): T {
   if (!el) {
@@ -374,6 +374,12 @@ function onCanvasPointerUp(event: PointerEvent): void {
   if (activePanel) {
     return;
   }
+  if (event.button === 2) {
+    if (world && currentSelection) {
+      issueOrderFromPointer(event);
+    }
+    return;
+  }
   if (event.button !== 0) {
     return;
   }
@@ -390,6 +396,38 @@ function onCanvasPointerUp(event: PointerEvent): void {
   if (world) {
     currentSelection = scene.pick(event.clientX, event.clientY);
     scene.updateWorld(world, currentSelection);
+    updateHud(world.map, world);
+  }
+}
+
+function issueOrderFromPointer(event: PointerEvent): void {
+  if (!world || !currentSelection) {
+    return;
+  }
+  const selected = findSelection(world, currentSelection);
+  if (!selected || "queue" in selected || selected.owner !== "player") {
+    return;
+  }
+  event.preventDefault();
+  const now = performance.now();
+  const picked = scene.pick(event.clientX, event.clientY);
+  if (picked) {
+    const target = findSelection(world, picked);
+    if (target && target.owner !== "player") {
+      const targetKind = "queue" in target ? "building" : "unit";
+      issueOrder(
+        world,
+        currentSelection,
+        { kind: "attackTarget", targetId: target.id, targetKind },
+        now,
+      );
+      updateHud(world.map, world);
+      return;
+    }
+  }
+  const ground = scene.projectToGround(event.clientX, event.clientY);
+  if (ground) {
+    issueOrder(world, currentSelection, { kind: "attackMove", target: ground }, now);
     updateHud(world.map, world);
   }
 }
@@ -432,6 +470,7 @@ canvasElement.addEventListener("pointerdown", (event) => beginSelectionDrag(even
 canvasElement.addEventListener("pointermove", (event) => updateSelectionDrag(event));
 canvasElement.addEventListener("pointerup", (event) => onCanvasPointerUp(event));
 canvasElement.addEventListener("pointercancel", (event) => endSelectionDrag(event));
+canvasElement.addEventListener("contextmenu", (event) => event.preventDefault());
 openSettingsButtons.forEach((btn) => btn.addEventListener("click", () => openPanel(settingsPanel)));
 openControlsButtons.forEach((btn) => btn.addEventListener("click", () => openPanel(controlsPanel)));
 closeSettings.addEventListener("click", () => closePanel());

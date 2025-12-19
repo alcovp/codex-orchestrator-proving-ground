@@ -20,6 +20,7 @@ export type WorldScene = {
   updateWorld(world: GameWorld, selection: Selection | null): void;
   pick(screenX: number, screenY: number): Selection | null;
   pickInRect(rect: DOMRect): Selection | null;
+  projectToGround(screenX: number, screenY: number): { x: number; z: number } | null;
   dispose(): void;
 };
 
@@ -87,6 +88,8 @@ export function createWorldScene(
   const pickTargets: THREE.Object3D[] = [];
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const groundPoint = new THREE.Vector3();
   const factionTint: Record<FactionId, THREE.ColorRepresentation> = {
     player: 0x76d4ff,
     ai: 0xff8f76,
@@ -633,6 +636,23 @@ export function createWorldScene(
     return selection ?? null;
   }
 
+  function projectToGround(
+    screenX: number,
+    screenY: number,
+  ): { x: number; z: number } | null {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointerNdc.set(
+      ((screenX - rect.left) / rect.width) * 2 - 1,
+      -((screenY - rect.top) / rect.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(pointerNdc, camera);
+    const hit = raycaster.ray.intersectPlane(groundPlane, groundPoint);
+    if (!hit) {
+      return null;
+    }
+    return { x: groundPoint.x, z: groundPoint.z };
+  }
+
   function pickInRect(rect: DOMRect): Selection | null {
     if (!rect.width || !rect.height) {
       return null;
@@ -900,6 +920,7 @@ export function createWorldScene(
     },
     pick,
     pickInRect,
+    projectToGround,
     dispose: () => {
       canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("pointermove", onPointerMove);

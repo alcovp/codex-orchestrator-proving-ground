@@ -135,6 +135,23 @@ export type AttackState = {
   cooldown: number;
 };
 
+export type AiPlanStep =
+  | { kind: "ensureWorkers"; count: number }
+  | { kind: "trainUnits"; unitTypeId: UnitTypeId; count: number }
+  | {
+      kind: "buildStructure";
+      typeId: BuildingTypeId;
+      offset: { x: number; z: number };
+      requireSpice?: number;
+    }
+  | { kind: "setRally"; offset: { x: number; z: number } }
+  | { kind: "loopProduction"; unitTypeId: UnitTypeId; minQueue: number };
+
+export type AiLoopProduction = {
+  unitTypeId: UnitTypeId;
+  minQueue: number;
+};
+
 export type UnitOrder =
   | { kind: "idle" }
   | { kind: "move"; target: { x: number; z: number } }
@@ -180,6 +197,9 @@ export type AiState = {
   desiredWorkers: number;
   rallyPoint: { x: number; z: number };
   attackTarget: { x: number; z: number };
+  planStep: number;
+  loopProduction: AiLoopProduction | null;
+  nextScoutAt: number;
 };
 
 export type GameWorld = {
