@@ -143,6 +143,9 @@ let world: GameWorld | null = null;
 let currentSelection: SelectionGroup = [];
 let isDraggingSelection = false;
 let selectionStart: { x: number; y: number } | null = null;
+let selectionPointerId: number | null = null;
+const activeTouchPointers = new Set<number>();
+let touchGestureLock = false;
 let activePanel: HTMLElement | null = null;
 const uiSettings = {
   volume: 70,
@@ -325,6 +328,7 @@ function beginSelectionDrag(event: PointerEvent): void {
   }
   selectionStart = { x: event.clientX, y: event.clientY };
   isDraggingSelection = true;
+  selectionPointerId = event.pointerId;
   hideSelectionRect();
   canvasElement.setPointerCapture(event.pointerId);
 }
@@ -344,11 +348,21 @@ function updateSelectionDrag(event: PointerEvent): void {
 }
 
 function endSelectionDrag(event?: PointerEvent): void {
-  if (event && canvasElement.hasPointerCapture(event.pointerId)) {
-    canvasElement.releasePointerCapture(event.pointerId);
+  const pointerIds = new Set<number>();
+  if (event) {
+    pointerIds.add(event.pointerId);
   }
+  if (selectionPointerId != null) {
+    pointerIds.add(selectionPointerId);
+  }
+  pointerIds.forEach((id) => {
+    if (canvasElement.hasPointerCapture(id)) {
+      canvasElement.releasePointerCapture(id);
+    }
+  });
   isDraggingSelection = false;
   selectionStart = null;
+  selectionPointerId = null;
   hideSelectionRect();
   scene.usePointerHover();
 }
@@ -357,13 +371,14 @@ function onCanvasPointerUp(event: PointerEvent): void {
   if (activePanel) {
     return;
   }
-  if (event.button === 2) {
+  const isTouch = event.pointerType === "touch";
+  if (!isTouch && event.button === 2) {
     if (world && currentSelection.length) {
       issueOrderFromPointer(event);
     }
     return;
   }
-  if (event.button !== 0) {
+  if (!isTouch && event.button !== 0) {
     return;
   }
   if (isDraggingSelection) {
@@ -384,7 +399,17 @@ function onCanvasPointerUp(event: PointerEvent): void {
   }
   if (world) {
     const picked = scene.pick(event.clientX, event.clientY);
-    if (picked) {
+    if (isTouch) {
+      const target = picked ? findSelection(world, picked) : null;
+      const isEnemyTarget = !!target && "owner" in target && target.owner !== "player";
+      if (picked && (!isEnemyTarget || !currentSelection.length)) {
+        currentSelection = [picked];
+      } else if (currentSelection.length) {
+        issueOrderFromPointer(event);
+      } else {
+        currentSelection = [];
+      }
+    } else if (picked) {
       currentSelection = event.ctrlKey ? toggleSelection(currentSelection, picked) : [picked];
     } else if (!event.ctrlKey) {
       currentSelection = [];
@@ -429,6 +454,53 @@ function issueOrderFromPointer(event: PointerEvent): void {
   }
 }
 
+function handleCanvasPointerDown(event: PointerEvent): void {
+  if (event.pointerType === "touch") {
+    activeTouchPointers.add(event.pointerId);
+    if (activeTouchPointers.size >= 2) {
+      touchGestureLock = true;
+      endSelectionDrag(event);
+      return;
+    }
+  }
+  if (touchGestureLock) {
+    return;
+  }
+  beginSelectionDrag(event);
+}
+
+function handleCanvasPointerMove(event: PointerEvent): void {
+  if (touchGestureLock) {
+    return;
+  }
+  updateSelectionDrag(event);
+}
+
+function handleCanvasPointerUp(event: PointerEvent): void {
+  const wasTouchGesture = touchGestureLock;
+  if (event.pointerType === "touch") {
+    activeTouchPointers.delete(event.pointerId);
+    if (activeTouchPointers.size === 0) {
+      touchGestureLock = false;
+    }
+  }
+  if (wasTouchGesture) {
+    endSelectionDrag(event);
+    return;
+  }
+  onCanvasPointerUp(event);
+}
+
+function handleCanvasPointerCancel(event: PointerEvent): void {
+  if (event.pointerType === "touch") {
+    activeTouchPointers.delete(event.pointerId);
+    if (activeTouchPointers.size === 0) {
+      touchGestureLock = false;
+    }
+  }
+  endSelectionDrag(event);
+}
+
 function openPanel(panel: HTMLElement): void {
   if (activePanel) {
     closePanel();
@@ -462,10 +534,10 @@ startButton.addEventListener("click", () => startSession());
 mapSelect.addEventListener("change", () => {
   updateMapMeta(findMapById(mapSelect.value) ?? preparedMap);
 });
-canvasElement.addEventListener("pointerdown", (event) => beginSelectionDrag(event));
-canvasElement.addEventListener("pointermove", (event) => updateSelectionDrag(event));
-canvasElement.addEventListener("pointerup", (event) => onCanvasPointerUp(event));
-canvasElement.addEventListener("pointercancel", (event) => endSelectionDrag(event));
+canvasElement.addEventListener("pointerdown", (event) => handleCanvasPointerDown(event));
+canvasElement.addEventListener("pointermove", (event) => handleCanvasPointerMove(event));
+canvasElement.addEventListener("pointerup", (event) => handleCanvasPointerUp(event));
+canvasElement.addEventListener("pointercancel", (event) => handleCanvasPointerCancel(event));
 canvasElement.addEventListener("contextmenu", (event) => event.preventDefault());
 openSettingsButtons.forEach((btn) => btn.addEventListener("click", () => openPanel(settingsPanel)));
 openControlsButtons.forEach((btn) => btn.addEventListener("click", () => openPanel(controlsPanel)));

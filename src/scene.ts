@@ -85,6 +85,7 @@ export function createWorldScene(
   const pickTargets: THREE.Object3D[] = [];
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
+  const touchTempCenter = new THREE.Vector2();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const groundPoint = new THREE.Vector3();
   const factionTint: Record<FactionId, THREE.ColorRepresentation> = {
@@ -132,6 +133,12 @@ export function createWorldScene(
     pointerInside: false,
     keys: new Set<string>(),
     enabled: true,
+  };
+  const touchState = {
+    points: new Map<number, THREE.Vector2>(),
+    active: false,
+    lastCenter: new THREE.Vector2(),
+    lastDistance: 0,
   };
 
   function buildTerrain(map: MapDefinition): void {
@@ -878,6 +885,56 @@ export function createWorldScene(
     return { x: groundPoint.x, z: groundPoint.z };
   }
 
+  function getTouchCenterAndDistance():
+    | { center: THREE.Vector2; distance: number }
+    | null {
+    if (touchState.points.size < 2) {
+      return null;
+    }
+    const [p1, p2] = Array.from(touchState.points.values());
+    if (!p1 || !p2) {
+      return null;
+    }
+    touchTempCenter.set((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+    const distance = p1.distanceTo(p2);
+    return { center: touchTempCenter, distance };
+  }
+
+  function applyTouchGesture(): void {
+    if (!inputState.enabled || !currentMap) {
+      touchState.active = false;
+      return;
+    }
+    const info = getTouchCenterAndDistance();
+    if (!info) {
+      touchState.active = false;
+      return;
+    }
+    const { center, distance } = info;
+    if (!touchState.active) {
+      touchState.active = true;
+      touchState.lastCenter.copy(center);
+      touchState.lastDistance = distance;
+      return;
+    }
+    const prevGround = projectToGround(touchState.lastCenter.x, touchState.lastCenter.y);
+    const nextGround = projectToGround(center.x, center.y);
+    if (prevGround && nextGround) {
+      desiredTarget.x -= nextGround.x - prevGround.x;
+      desiredTarget.z -= nextGround.z - prevGround.z;
+      clampTarget(desiredTarget);
+    }
+    const deltaDistance = distance - touchState.lastDistance;
+    touchState.lastDistance = distance;
+    touchState.lastCenter.copy(center);
+    const pinchStep = deltaDistance * 0.02;
+    targetDistance = THREE.MathUtils.clamp(
+      targetDistance - pinchStep,
+      settings.camera.minDistance,
+      settings.camera.maxDistance,
+    );
+  }
+
   function pickInRect(rect: DOMRect): SelectionGroup {
     if (!rect.width || !rect.height) {
       return [];
@@ -924,6 +981,9 @@ export function createWorldScene(
   function computeMoveDirection(): THREE.Vector2 {
     moveDirection.set(0, 0);
     if (!inputState.enabled || !currentMap) {
+      return moveDirection;
+    }
+    if (touchState.active) {
       return moveDirection;
     }
 
@@ -1041,6 +1101,45 @@ export function createWorldScene(
     );
   }
 
+  function onTouchPointerDown(event: PointerEvent): void {
+    if (event.pointerType !== "touch") {
+      return;
+    }
+    touchState.points.set(event.pointerId, new THREE.Vector2(event.clientX, event.clientY));
+    if (touchState.points.size >= 2) {
+      const info = getTouchCenterAndDistance();
+      touchState.active = true;
+      if (info) {
+        touchState.lastCenter.copy(info.center);
+        touchState.lastDistance = info.distance;
+      }
+    }
+  }
+
+  function onTouchPointerMove(event: PointerEvent): void {
+    if (event.pointerType !== "touch" || !touchState.points.has(event.pointerId)) {
+      return;
+    }
+    const point = touchState.points.get(event.pointerId);
+    if (point) {
+      point.set(event.clientX, event.clientY);
+    }
+    if (touchState.points.size >= 2) {
+      applyTouchGesture();
+    }
+  }
+
+  function onTouchPointerUp(event: PointerEvent): void {
+    if (event.pointerType !== "touch") {
+      return;
+    }
+    touchState.points.delete(event.pointerId);
+    if (touchState.points.size < 2) {
+      touchState.active = false;
+      touchState.lastDistance = 0;
+    }
+  }
+
   function onPointerMove(event: PointerEvent): void {
     inputState.pointer.set(event.clientX, event.clientY);
     inputState.pointerInside = true;
@@ -1070,12 +1169,17 @@ export function createWorldScene(
 
   function onWindowBlur(): void {
     inputState.keys.clear();
+    touchState.points.clear();
+    touchState.active = false;
+    touchState.lastDistance = 0;
   }
 
   function setInputEnabled(enabled: boolean): void {
     inputState.enabled = enabled;
     if (!enabled) {
       inputState.keys.clear();
+      touchState.points.clear();
+      touchState.active = false;
     }
   }
 
@@ -1089,6 +1193,10 @@ export function createWorldScene(
   }
 
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("pointerdown", onTouchPointerDown);
+  canvas.addEventListener("pointermove", onTouchPointerMove);
+  canvas.addEventListener("pointerup", onTouchPointerUp);
+  canvas.addEventListener("pointercancel", onTouchPointerUp);
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerleave", onPointerLeave);
   window.addEventListener("keydown", onKeyDown);
@@ -1125,6 +1233,10 @@ export function createWorldScene(
     usePointerHover,
     dispose: () => {
       canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("pointerdown", onTouchPointerDown);
+      canvas.removeEventListener("pointermove", onTouchPointerMove);
+      canvas.removeEventListener("pointerup", onTouchPointerUp);
+      canvas.removeEventListener("pointercancel", onTouchPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onKeyDown);

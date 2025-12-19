@@ -59,6 +59,8 @@
         width: 100vw;
         height: 100vh;
         outline: none;
+        touch-action: none;
+        user-select: none;
       }
       .ui-layer {
         position: relative;
@@ -406,6 +408,11 @@
           <div class="item">
             <div class="title">Выбор</div>
             ЛКМ — выбрать, Drag — рамка множественного выбора
+          </div>
+          <div class="item">
+            <div class="title">Тач-управление</div>
+            Тап по юниту — выбор; тап по земле/врагу с выбранными — приказ. Свайп одним
+            пальцем — рамка, два пальца — панорама и пинч-зум карты.
           </div>
           <div class="item">
             <div class="title">Действия</div>
