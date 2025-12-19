@@ -84,6 +84,52 @@ const hudProduction = requireElement(
   document.querySelector<HTMLElement>("#hud-production"),
   "#hud-production",
 );
+const openSettingsButtons = [
+  requireElement(document.querySelector<HTMLButtonElement>("#open-settings"), "#open-settings"),
+  requireElement(
+    document.querySelector<HTMLButtonElement>("#hud-open-settings"),
+    "#hud-open-settings",
+  ),
+];
+const openControlsButtons = [
+  requireElement(document.querySelector<HTMLButtonElement>("#open-controls"), "#open-controls"),
+  requireElement(
+    document.querySelector<HTMLButtonElement>("#hud-open-controls"),
+    "#hud-open-controls",
+  ),
+];
+const settingsPanel = requireElement(
+  document.querySelector<HTMLElement>("#settings-panel"),
+  "#settings-panel",
+);
+const controlsPanel = requireElement(
+  document.querySelector<HTMLElement>("#controls-panel"),
+  "#controls-panel",
+);
+const closeSettings = requireElement(
+  document.querySelector<HTMLButtonElement>("#close-settings"),
+  "#close-settings",
+);
+const closeControls = requireElement(
+  document.querySelector<HTMLButtonElement>("#close-controls"),
+  "#close-controls",
+);
+const sliderVolume = requireElement(
+  document.querySelector<HTMLInputElement>("#slider-volume"),
+  "#slider-volume",
+);
+const sliderCamera = requireElement(
+  document.querySelector<HTMLInputElement>("#slider-camera"),
+  "#slider-camera",
+);
+const valueVolume = requireElement(
+  document.querySelector<HTMLElement>("#value-volume"),
+  "#value-volume",
+);
+const valueCamera = requireElement(
+  document.querySelector<HTMLElement>("#value-camera"),
+  "#value-camera",
+);
 
 const scene = createWorldScene(canvasElement, worldSettings);
 const emptyMap: MapDefinition = {
@@ -111,9 +157,28 @@ let world: GameWorld | null = null;
 let currentSelection: Selection | null = null;
 let isDraggingSelection = false;
 let selectionStart: { x: number; y: number } | null = null;
+let activePanel: HTMLElement | null = null;
+const uiSettings = {
+  volume: 70,
+  cameraSensitivity: 1,
+};
 
 function findMapById(id: string): MapDefinition | null {
   return maps.find((map) => map.id === id) ?? null;
+}
+
+function isVisibleToPlayer(worldState: GameWorld, position: { x: number; z: number }): boolean {
+  const vision = worldState.vision.player;
+  if (!vision) {
+    return true;
+  }
+  const gx = Math.floor((position.x + worldState.map.size.width / 2) / vision.cellSize);
+  const gz = Math.floor((position.z + worldState.map.size.height / 2) / vision.cellSize);
+  if (gx < 0 || gz < 0 || gx >= vision.width || gz >= vision.height) {
+    return false;
+  }
+  const idx = gz * vision.width + gx;
+  return vision.visible[idx] === 1;
 }
 
 function hideSelectionRect(): void {
@@ -146,7 +211,7 @@ function setPhase(next: GamePhase): void {
   const playing = phase === "playing";
   menuScreen.hidden = playing;
   hud.hidden = !playing;
-  scene.setInputEnabled(playing);
+  scene.setInputEnabled(playing && !activePanel);
   if (!playing) {
     hideSelectionRect();
   }
@@ -155,7 +220,7 @@ function setPhase(next: GamePhase): void {
 function updateHud(map: MapDefinition | null, worldState: GameWorld | null): void {
   hudMapName.textContent = map?.name ?? "Нет карты";
   const baseHint =
-    "Камера: WASD/края экрана, колесо — зум. ЛКМ — выбор, рамка — множественный выбор.";
+    "Камера: WASD/края экрана, колесо — зум. ЛКМ — выбор, рамка — множественный выбор. Туман войны скрывает неразведанные зоны.";
   if (!worldState) {
     hudStatus.textContent = "Создайте матч и нажмите «Начать». " + baseHint;
     hudSpice.textContent = "—";
@@ -170,14 +235,19 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   const minUnitCost = Math.min(
     ...Object.values(worldState.defs.units).map((def) => def.cost.spice),
   );
-  let status =
-    worldState.statusMessage ??
-    "Добыча спайса идет. Рабочие автоматически возят груз в переработку.";
-  if (!worldState.statusMessage) {
-    if (!activeNodes.length) {
-      status = "Залежи спайса исчерпаны. Добыча остановлена.";
-    } else if (player.spice < minUnitCost) {
-      status = `Недостаточно спайса: минимум ${minUnitCost} для заказа юнитов.`;
+  let status: string;
+  if (worldState.outcome) {
+    status = worldState.outcome.message;
+  } else {
+    status =
+      worldState.statusMessage ??
+      "Добыча спайса идет. Рабочие автоматически возят груз в переработку.";
+    if (!worldState.statusMessage) {
+      if (!activeNodes.length) {
+        status = "Залежи спайса исчерпаны. Добыча остановлена.";
+      } else if (player.spice < minUnitCost) {
+        status = `Недостаточно спайса: минимум ${minUnitCost} для заказа юнитов.`;
+      }
     }
   }
   hudStatus.textContent = `${status} ${baseHint}`;
@@ -185,9 +255,14 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   hudPower.textContent = `${Math.floor(player.power)} энергия`;
 
   const target = currentSelection ? findSelection(worldState, currentSelection) : null;
-  if (!target) {
+  const targetVisible =
+    target &&
+    (target.owner === "player" || isVisibleToPlayer(worldState, target.position));
+  if (!target || !targetVisible) {
     hudSelectionName.textContent = "Ничего не выбрано";
-    hudSelectionDetails.textContent = "Кликните по объекту на поле.";
+    hudSelectionDetails.textContent = target
+      ? "Цель скрыта туманом войны."
+      : "Кликните по объекту на поле.";
     hudProduction.textContent = "";
     return;
   }
@@ -247,6 +322,7 @@ function startSession(mapOverride?: MapDefinition | null): void {
     lobbyStatus.dataset.state = "error";
     return;
   }
+  closePanel();
   world = createGameWorld(map, performance.now());
   currentSelection = null;
   scene.setMap(map);
@@ -261,6 +337,7 @@ function backToMenu(): void {
   world = null;
   currentSelection = null;
   preparedMap = initialMap ?? null;
+  closePanel();
   setPhase("menu");
   lobbyStatus.textContent = "Выберите карту и создайте игру.";
   lobbyStatus.dataset.state = "idle";
@@ -268,7 +345,7 @@ function backToMenu(): void {
 }
 
 function beginSelectionDrag(event: PointerEvent): void {
-  if (phase !== "playing" || event.button !== 0) {
+  if (phase !== "playing" || activePanel || event.button !== 0) {
     return;
   }
   selectionStart = { x: event.clientX, y: event.clientY };
@@ -278,7 +355,7 @@ function beginSelectionDrag(event: PointerEvent): void {
 }
 
 function updateSelectionDrag(event: PointerEvent): void {
-  if (!isDraggingSelection || !selectionStart || phase !== "playing") {
+  if (!isDraggingSelection || !selectionStart || phase !== "playing" || activePanel) {
     return;
   }
   showSelectionRect(selectionStart, { x: event.clientX, y: event.clientY });
@@ -294,6 +371,9 @@ function endSelectionDrag(event?: PointerEvent): void {
 }
 
 function onCanvasPointerUp(event: PointerEvent): void {
+  if (activePanel) {
+    return;
+  }
   if (event.button !== 0) {
     return;
   }
@@ -314,6 +394,34 @@ function onCanvasPointerUp(event: PointerEvent): void {
   }
 }
 
+function openPanel(panel: HTMLElement): void {
+  if (activePanel) {
+    closePanel();
+  }
+  panel.dataset.open = "true";
+  activePanel = panel;
+  scene.setInputEnabled(false);
+}
+
+function closePanel(): void {
+  if (activePanel) {
+    activePanel.dataset.open = "false";
+    activePanel = null;
+  }
+  scene.setInputEnabled(phase === "playing");
+}
+
+function applyCameraSensitivity(multiplier: number): void {
+  scene.setCameraSensitivity(multiplier);
+  uiSettings.cameraSensitivity = multiplier;
+  valueCamera.textContent = `${multiplier.toFixed(2)}×`;
+}
+
+function applyVolume(value: number): void {
+  uiSettings.volume = value;
+  valueVolume.textContent = `${value}%`;
+}
+
 createButton.addEventListener("click", () => createLobby());
 startButton.addEventListener("click", () => startSession());
 backToMenuButton.addEventListener("click", () => backToMenu());
@@ -324,6 +432,14 @@ canvasElement.addEventListener("pointerdown", (event) => beginSelectionDrag(even
 canvasElement.addEventListener("pointermove", (event) => updateSelectionDrag(event));
 canvasElement.addEventListener("pointerup", (event) => onCanvasPointerUp(event));
 canvasElement.addEventListener("pointercancel", (event) => endSelectionDrag(event));
+openSettingsButtons.forEach((btn) => btn.addEventListener("click", () => openPanel(settingsPanel)));
+openControlsButtons.forEach((btn) => btn.addEventListener("click", () => openPanel(controlsPanel)));
+closeSettings.addEventListener("click", () => closePanel());
+closeControls.addEventListener("click", () => closePanel());
+sliderVolume.addEventListener("input", () => applyVolume(Number(sliderVolume.value)));
+sliderCamera.addEventListener("input", () =>
+  applyCameraSensitivity(Number(sliderCamera.value) / 100),
+);
 
 window.addEventListener("resize", () => scene.resize());
 
@@ -336,7 +452,10 @@ function renderLoop(): void {
   if (phase === "playing" && world) {
     updateGameWorld(world, now);
     const resolved = currentSelection ? findSelection(world, currentSelection) : null;
-    if (!resolved) {
+    const visible =
+      resolved &&
+      (resolved.owner === "player" || isVisibleToPlayer(world, resolved.position));
+    if (!resolved || !visible) {
       currentSelection = null;
     }
     scene.updateWorld(world, currentSelection);
@@ -346,6 +465,8 @@ function renderLoop(): void {
   window.requestAnimationFrame(renderLoop);
 }
 
+applyVolume(uiSettings.volume);
+applyCameraSensitivity(uiSettings.cameraSensitivity);
 backToMenu();
 scene.setMap(initialMap);
 updateHud(initialMap, world);

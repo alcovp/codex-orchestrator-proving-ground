@@ -16,6 +16,7 @@ export type WorldScene = {
   render(): void;
   resize(): void;
   setInputEnabled(enabled: boolean): void;
+  setCameraSensitivity(multiplier: number): void;
   updateWorld(world: GameWorld, selection: Selection | null): void;
   pick(screenX: number, screenY: number): Selection | null;
   pickInRect(rect: DOMRect): Selection | null;
@@ -78,6 +79,11 @@ export function createWorldScene(
     string,
     { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh }
   >();
+  let fogMesh: THREE.Mesh | null = null;
+  let fogTexture: THREE.DataTexture | null = null;
+  let fogData: Uint8Array | null = null;
+  let fogWidth = 0;
+  let fogHeight = 0;
   const pickTargets: THREE.Object3D[] = [];
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
@@ -95,6 +101,7 @@ export function createWorldScene(
   const tilt = THREE.MathUtils.degToRad(settings.camera.tiltDeg);
   let distance = settings.camera.defaultDistance;
   let targetDistance = settings.camera.defaultDistance;
+  let panSpeed = settings.camera.panSpeed;
   let lastFrame = performance.now();
   const moveDirection = new THREE.Vector2();
   const inputState = {
@@ -191,6 +198,24 @@ export function createWorldScene(
       }
     });
     scene.remove(group);
+  }
+
+  function disposeFog(): void {
+    if (fogMesh) {
+      if (fogMesh.material instanceof THREE.Material) {
+        fogMesh.material.dispose();
+      }
+      fogMesh.geometry.dispose();
+      scene.remove(fogMesh);
+    }
+    if (fogTexture) {
+      fogTexture.dispose();
+    }
+    fogMesh = null;
+    fogTexture = null;
+    fogData = null;
+    fogWidth = 0;
+    fogHeight = 0;
   }
 
   function buildResourceSpots(map: MapDefinition): void {
@@ -387,12 +412,33 @@ export function createWorldScene(
     return { group, ring, body };
   }
 
-  function syncSelectionHighlight(entry: { ring: THREE.Mesh }, selected: boolean): void {
+  function syncSelectionHighlight(
+    entry: { ring: THREE.Mesh },
+    selected: boolean,
+    visible: boolean,
+  ): void {
+    entry.ring.visible = visible;
     const material = entry.ring.material;
     if (material instanceof THREE.Material) {
       material.opacity = selected ? 0.9 : 0.35;
-      material.visible = true;
     }
+  }
+
+  function isVisibleToPlayer(world: GameWorld, position: { x: number; z: number }): boolean {
+    if (!currentMap) {
+      return true;
+    }
+    const vision = world.vision.player;
+    if (!vision) {
+      return true;
+    }
+    const gx = Math.floor((position.x + currentMap.size.width / 2) / vision.cellSize);
+    const gz = Math.floor((position.z + currentMap.size.height / 2) / vision.cellSize);
+    if (gx < 0 || gz < 0 || gx >= vision.width || gz >= vision.height) {
+      return false;
+    }
+    const idx = gz * vision.width + gx;
+    return vision.visible[idx] === 1;
   }
 
   function syncBuildingMeshes(world: GameWorld, selection: Selection | null): void {
@@ -406,9 +452,16 @@ export function createWorldScene(
         buildingMeshes.set(building.id, entry);
         scene.add(entry.group);
       }
+      const visible =
+        building.owner === "player" || isVisibleToPlayer(world, building.position);
+      entry.group.visible = visible;
       entry.group.position.set(building.position.x, 0, building.position.z);
       entry.group.rotation.y = THREE.MathUtils.degToRad(building.facingDeg);
-      syncSelectionHighlight(entry, selection?.id === building.id && selection.kind === "building");
+      syncSelectionHighlight(
+        entry,
+        selection?.id === building.id && selection.kind === "building",
+        visible,
+      );
     });
 
     buildingMeshes.forEach((entry, id) => {
@@ -429,9 +482,15 @@ export function createWorldScene(
         unitMeshes.set(unit.id, entry);
         scene.add(entry.group);
       }
+      const visible = unit.owner === "player" || isVisibleToPlayer(world, unit.position);
+      entry.group.visible = visible;
       entry.group.position.set(unit.position.x, 0, unit.position.z);
       entry.group.rotation.y = THREE.MathUtils.degToRad(unit.facingDeg);
-      syncSelectionHighlight(entry, selection?.id === unit.id && selection.kind === "unit");
+      syncSelectionHighlight(
+        entry,
+        selection?.id === unit.id && selection.kind === "unit",
+        visible,
+      );
     });
 
     unitMeshes.forEach((entry, id) => {
@@ -453,9 +512,10 @@ export function createWorldScene(
       }
       const maxAmount = entry.maxAmount || node.maxAmount || 1;
       const ratio = maxAmount > 0 ? THREE.MathUtils.clamp(node.amount / maxAmount, 0, 1) : 0;
+      const visible = isVisibleToPlayer(world, node.position);
       entry.body.scale.y = 0.2 + ratio * 0.8;
-      entry.body.visible = node.amount > 0.2;
-      entry.ring.visible = node.amount > 0.2;
+      entry.body.visible = visible && node.amount > 0.2;
+      entry.ring.visible = visible && node.amount > 0.2;
       if (entry.ring.material instanceof THREE.Material) {
         entry.ring.material.opacity = 0.2 + ratio * 0.5;
       }
@@ -465,10 +525,97 @@ export function createWorldScene(
     });
   }
 
+  function ensureFog(world: GameWorld): void {
+    if (!currentMap) {
+      return;
+    }
+    const vision = world.vision.player;
+    if (!vision) {
+      disposeFog();
+      return;
+    }
+    const needsRebuild =
+      !fogMesh || !fogTexture || fogWidth !== vision.width || fogHeight !== vision.height;
+    if (!needsRebuild) {
+      return;
+    }
+    disposeFog();
+    fogWidth = vision.width;
+    fogHeight = vision.height;
+    fogData = new Uint8Array(fogWidth * fogHeight);
+    fogTexture = new THREE.DataTexture(
+      fogData,
+      fogWidth,
+      fogHeight,
+      THREE.RedFormat,
+      THREE.UnsignedByteType,
+    );
+    fogTexture.flipY = false;
+    fogTexture.colorSpace = THREE.NoColorSpace;
+    fogTexture.wrapS = THREE.ClampToEdgeWrapping;
+    fogTexture.wrapT = THREE.ClampToEdgeWrapping;
+    fogTexture.magFilter = THREE.LinearFilter;
+    fogTexture.minFilter = THREE.LinearFilter;
+    fogTexture.needsUpdate = true;
+    const geometry = new THREE.PlaneGeometry(currentMap.size.width, currentMap.size.height, 1, 1);
+    const material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0x040404),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.94,
+      alphaMap: fogTexture,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.24;
+    mesh.renderOrder = 2;
+    fogMesh = mesh;
+    scene.add(mesh);
+  }
+
+  function syncFog(world: GameWorld): void {
+    if (!currentMap || !world.vision.player) {
+      return;
+    }
+    ensureFog(world);
+    if (!fogData || !fogTexture) {
+      return;
+    }
+    const { visible, explored } = world.vision.player;
+    if (visible.length !== fogData.length) {
+      ensureFog(world);
+      if (!fogData || !fogTexture) {
+        return;
+      }
+    }
+    for (let i = 0; i < fogData.length; i += 1) {
+      let alpha = 255;
+      if (visible[i]) {
+        alpha = 0;
+      } else if (explored[i]) {
+        alpha = 160;
+      }
+      fogData[i] = alpha;
+    }
+    fogTexture.needsUpdate = true;
+    if (fogMesh) {
+      fogMesh.visible = true;
+    }
+  }
+
   function rebuildPickTargets(): void {
     pickTargets.length = 0;
-    buildingMeshes.forEach((entry) => pickTargets.push(entry.body));
-    unitMeshes.forEach((entry) => pickTargets.push(entry.body));
+    buildingMeshes.forEach((entry) => {
+      if (entry.group.visible) {
+        pickTargets.push(entry.body);
+      }
+    });
+    unitMeshes.forEach((entry) => {
+      if (entry.group.visible) {
+        pickTargets.push(entry.body);
+      }
+    });
   }
 
   function pick(screenX: number, screenY: number): Selection | null {
@@ -611,9 +758,8 @@ export function createWorldScene(
     if (direction.lengthSq() === 0) {
       return;
     }
-    const speed = settings.camera.panSpeed;
-    desiredTarget.x += direction.x * speed * deltaSeconds;
-    desiredTarget.z += direction.y * speed * deltaSeconds;
+    desiredTarget.x += direction.x * panSpeed * deltaSeconds;
+    desiredTarget.z += direction.y * panSpeed * deltaSeconds;
     clampTarget(desiredTarget);
   }
 
@@ -718,6 +864,7 @@ export function createWorldScene(
   }
 
   function setMap(map: MapDefinition): void {
+    disposeFog();
     buildTerrain(map);
     buildResourceSpots(map);
     buildStartLocations(map);
@@ -737,10 +884,18 @@ export function createWorldScene(
     render,
     resize,
     setInputEnabled,
+    setCameraSensitivity: (multiplier: number) => {
+      panSpeed = THREE.MathUtils.clamp(
+        settings.camera.panSpeed * multiplier,
+        settings.camera.panSpeed * 0.3,
+        settings.camera.panSpeed * 3,
+      );
+    },
     updateWorld: (world: GameWorld, selection: Selection | null) => {
       syncResourceMeshes(world);
       syncBuildingMeshes(world, selection);
       syncUnitMeshes(world, selection);
+      syncFog(world);
       rebuildPickTargets();
     },
     pick,
@@ -753,6 +908,7 @@ export function createWorldScene(
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onWindowBlur);
       renderer.dispose();
+      disposeFog();
       disposeGroup(resourceGroup);
       disposeGroup(startGroup);
       resourceGroup = null;

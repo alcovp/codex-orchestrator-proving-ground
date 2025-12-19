@@ -82,6 +82,7 @@
         display: flex;
         gap: 10px;
         margin-top: 16px;
+        flex-wrap: wrap;
       }
       button {
         border: 1px solid rgba(255, 196, 128, 0.3);
@@ -171,6 +172,9 @@
         gap: 10px;
         margin-left: auto;
       }
+      .hud .actions button {
+        min-width: 120px;
+      }
       .selection-rect {
         position: absolute;
         border: 1px solid rgba(255, 196, 128, 0.85);
@@ -185,6 +189,78 @@
       .selection-rect[data-active="true"] {
         display: block;
       }
+      .panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(18, 14, 11, 0.94);
+        border: 1px solid rgba(255, 196, 128, 0.2);
+        border-radius: 16px;
+        padding: 18px 20px;
+        min-width: 320px;
+        max-width: 520px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+        pointer-events: auto;
+        display: none;
+        z-index: 3;
+      }
+      .panel[data-open="true"] {
+        display: block;
+      }
+      .panel h2 {
+        margin: 0 0 6px 0;
+        color: #f6d9a1;
+        font-size: 20px;
+      }
+      .panel p {
+        margin: 0 0 12px 0;
+        color: #c4b7a3;
+        font-size: 14px;
+      }
+      .panel .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .panel .row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .panel .row .value {
+        color: #f7c76b;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .panel input[type="range"] {
+        width: 100%;
+      }
+      .panel .hotkeys {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+      .panel .hotkeys .item {
+        background: rgba(28, 21, 17, 0.7);
+        border: 1px solid rgba(255, 196, 128, 0.12);
+        border-radius: 10px;
+        padding: 10px;
+        color: #e8e0d6;
+        font-size: 13px;
+      }
+      .panel .hotkeys .title {
+        color: #b59d7a;
+        font-size: 12px;
+        margin-bottom: 4px;
+        letter-spacing: 0.06em;
+      }
+      .panel .footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 12px;
+      }
     </style>
   </head>
   <body>
@@ -197,6 +273,8 @@
         <div class="actions">
           <button id="create-game" class="secondary">Создать игру</button>
           <button id="start-game">Начать</button>
+          <button id="open-controls" class="secondary">Управление</button>
+          <button id="open-settings" class="secondary">Настройки</button>
         </div>
         <div class="lobby-status" id="lobby-status" data-state="idle">
           Выберите карту и создайте игру.
@@ -221,10 +299,56 @@
         </div>
         <div class="actions">
           <button id="restart-game" class="secondary">Рестарт</button>
+          <button id="hud-open-controls" class="secondary">Управление</button>
+          <button id="hud-open-settings" class="secondary">Настройки</button>
           <button id="back-to-menu">В меню</button>
         </div>
       </div>
       <div class="selection-rect" id="selection-rect"></div>
+      <div class="panel" id="settings-panel" data-open="false">
+        <h2>Настройки</h2>
+        <p>Сенс камеры влияет на скорость панорамирования. Звук будет применен к эффектам позже.</p>
+        <div class="controls">
+          <div class="row">
+            <label for="slider-volume">Громкость</label>
+            <input type="range" id="slider-volume" min="0" max="100" value="70" />
+            <div class="value" id="value-volume">70%</div>
+          </div>
+          <div class="row">
+            <label for="slider-camera">Чувствительность камеры</label>
+            <input type="range" id="slider-camera" min="50" max="150" value="100" />
+            <div class="value" id="value-camera">1.00×</div>
+          </div>
+        </div>
+        <div class="footer">
+          <button id="close-settings" class="secondary">Закрыть</button>
+        </div>
+      </div>
+      <div class="panel" id="controls-panel" data-open="false">
+        <h2>Управление</h2>
+        <p>Классические хоткеи RTS. Камера работает от краев экрана и клавиш.</p>
+        <div class="hotkeys">
+          <div class="item">
+            <div class="title">Камера</div>
+            WASD / Стрелки, колесо — зум, край экрана — панорамирование
+          </div>
+          <div class="item">
+            <div class="title">Выбор</div>
+            ЛКМ — выбрать, Drag — рамка множественного выбора
+          </div>
+          <div class="item">
+            <div class="title">Действия</div>
+            ПКМ — перемещение/атака по цели; наведите на юнита, чтобы выбрать
+          </div>
+          <div class="item">
+            <div class="title">Меню</div>
+            Рестарт / В меню — кнопки в HUD внизу экрана
+          </div>
+        </div>
+        <div class="footer">
+          <button id="close-controls" class="secondary">Закрыть</button>
+        </div>
+      </div>
     </div>
     <canvas id="game" aria-label="Игровое поле"></canvas>
     <script type="module" src="/src/main.ts"></script>

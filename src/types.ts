@@ -63,6 +63,8 @@ export type UnitDefinition = {
   cost: { spice: number; power?: number };
   harvestRate?: number;
   carryCapacity?: number;
+  visionRange: number;
+  attack?: AttackDefinition;
 };
 
 export type BuildingDefinition = {
@@ -74,6 +76,7 @@ export type BuildingDefinition = {
   queueLimit: number;
   cost: { spice: number; power?: number };
   isRefinery?: boolean;
+  visionRange: number;
 };
 
 export type ProductionQueueItem = {
@@ -99,6 +102,8 @@ export type UnitState = {
   facingDeg: number;
   hp: number;
   harvest?: HarvestTaskState;
+  attack?: AttackState;
+  behavior?: UnitBehaviorState;
 };
 
 export type BuildingState = {
@@ -118,6 +123,42 @@ export type PlayerState = {
   power: number;
 };
 
+export type AttackDefinition = {
+  damage: number;
+  cooldown: number;
+  range: number;
+};
+
+export type AttackState = {
+  targetId: string | null;
+  targetKind: "unit" | "building" | null;
+  cooldown: number;
+};
+
+export type UnitOrder =
+  | { kind: "idle" }
+  | { kind: "move"; target: { x: number; z: number } }
+  | { kind: "attackMove"; target: { x: number; z: number } }
+  | { kind: "attackTarget"; targetId: string; targetKind: "unit" | "building" };
+
+export type UnitBehaviorState = {
+  order: UnitOrder;
+  lastAttackAt: number;
+};
+
+export type VisionState = {
+  width: number;
+  height: number;
+  cellSize: number;
+  visible: Uint8Array;
+  explored: Uint8Array;
+};
+
+export type WorldOutcome = {
+  winner: FactionId | "draw";
+  message: string;
+};
+
 export type ResourceNodeState = {
   id: string;
   spotId: string;
@@ -132,6 +173,15 @@ export type Selection =
   | { kind: "unit"; id: string }
   | { kind: "building"; id: string };
 
+export type AiState = {
+  waveNumber: number;
+  nextWaveAt: number;
+  lastProductionCheck: number;
+  desiredWorkers: number;
+  rallyPoint: { x: number; z: number };
+  attackTarget: { x: number; z: number };
+};
+
 export type GameWorld = {
   map: MapDefinition;
   units: UnitState[];
@@ -144,4 +194,7 @@ export type GameWorld = {
   };
   lastTick: number;
   statusMessage?: string;
+  vision: Record<FactionId, VisionState>;
+  outcome?: WorldOutcome | null;
+  ai: AiState;
 };
