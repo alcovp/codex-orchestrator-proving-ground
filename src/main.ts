@@ -34,25 +34,9 @@ const menuScreen = requireElement(
   document.querySelector<HTMLElement>("#menu-screen"),
   "#menu-screen",
 );
-const hud = requireElement(
-  document.querySelector<HTMLElement>("#hud"),
-  "#hud",
-);
-const selectionRect = requireElement(
-  document.querySelector<HTMLElement>("#selection-rect"),
-  "#selection-rect",
-);
 const lobbyStatus = requireElement(
   document.querySelector<HTMLElement>("#lobby-status"),
   "#lobby-status",
-);
-const hudSpice = requireElement(
-  document.querySelector<HTMLElement>("#hud-spice"),
-  "#hud-spice",
-);
-const hudPower = requireElement(
-  document.querySelector<HTMLElement>("#hud-power"),
-  "#hud-power",
 );
 const openSettingsButtons = [
   requireElement(document.querySelector<HTMLButtonElement>("#open-settings"), "#open-settings"),
@@ -92,26 +76,6 @@ const valueCamera = requireElement(
   document.querySelector<HTMLElement>("#value-camera"),
   "#value-camera",
 );
-const outcomePanel = requireElement(
-  document.querySelector<HTMLElement>("#match-outcome"),
-  "#match-outcome",
-);
-const outcomeLabel = requireElement(
-  document.querySelector<HTMLElement>("#outcome-label"),
-  "#outcome-label",
-);
-const outcomeMessage = requireElement(
-  document.querySelector<HTMLElement>("#outcome-message"),
-  "#outcome-message",
-);
-const outcomeRestartButton = requireElement(
-  document.querySelector<HTMLButtonElement>("#outcome-restart"),
-  "#outcome-restart",
-);
-const outcomeMenuButton = requireElement(
-  document.querySelector<HTMLButtonElement>("#outcome-menu"),
-  "#outcome-menu",
-);
 
 const scene = createWorldScene(canvasElement, worldSettings);
 const emptyMap: MapDefinition = {
@@ -142,8 +106,10 @@ let preparedMap: MapDefinition | null = initialMap ?? null;
 let world: GameWorld | null = null;
 let currentSelection: SelectionGroup = [];
 let isDraggingSelection = false;
-let selectionStart: { x: number; y: number } | null = null;
+let selectionStart: { clientX: number; clientY: number; localX: number; localY: number } | null = null;
 let selectionPointerId: number | null = null;
+let selectionRectActive = false;
+let selectionScreenRect: DOMRect | null = null;
 const activeTouchPointers = new Set<number>();
 let touchGestureLock = false;
 let activePanel: HTMLElement | null = null;
@@ -207,49 +173,50 @@ function isVisibleToPlayer(worldState: GameWorld, position: { x: number; z: numb
 }
 
 function hideSelectionRect(): void {
-  selectionRect.dataset.active = "false";
-  selectionRect.style.width = "0px";
-  selectionRect.style.height = "0px";
+  selectionRectActive = false;
+  selectionScreenRect = null;
+  scene.setSelectionRect(null);
 }
 
 function showSelectionRect(
-  start: { x: number; y: number },
-  current: { x: number; y: number },
+  start: { clientX: number; clientY: number; localX: number; localY: number },
+  current: { clientX: number; clientY: number; localX: number; localY: number },
 ): void {
-  const left = Math.min(start.x, current.x);
-  const top = Math.min(start.y, current.y);
-  const width = Math.abs(current.x - start.x);
-  const height = Math.abs(current.y - start.y);
-  if (width < 2 && height < 2) {
-    selectionRect.dataset.active = "false";
+  const left = Math.min(start.clientX, current.clientX);
+  const top = Math.min(start.clientY, current.clientY);
+  const width = Math.abs(current.clientX - start.clientX);
+  const height = Math.abs(current.clientY - start.clientY);
+  const localLeft = Math.min(start.localX, current.localX);
+  const localTop = Math.min(start.localY, current.localY);
+  if (width < 4 && height < 4) {
+    selectionRectActive = false;
+    selectionScreenRect = null;
+    scene.setSelectionRect(null);
     return;
   }
-  selectionRect.style.left = `${left}px`;
-  selectionRect.style.top = `${top}px`;
-  selectionRect.style.width = `${width}px`;
-  selectionRect.style.height = `${height}px`;
-  selectionRect.dataset.active = "true";
+  selectionRectActive = true;
+  selectionScreenRect = new DOMRect(left, top, width, height);
+  scene.setSelectionRect({ left: localLeft, top: localTop, width, height });
 }
 
 function updateOutcomeOverlay(worldState: GameWorld | null): void {
   const outcome = worldState?.outcome ?? null;
   if (!outcome) {
-    outcomePanel.hidden = true;
-    outcomePanel.dataset.state = "";
+    scene.setMatchOutcome(null);
     return;
   }
   const state = outcome.winner === "player" ? "win" : outcome.winner === "ai" ? "lose" : "draw";
-  outcomePanel.hidden = false;
-  outcomePanel.dataset.state = state;
-  outcomeLabel.textContent = state === "win" ? "Победа" : state === "lose" ? "Поражение" : "Ничья";
-  outcomeMessage.textContent = outcome.message;
+  scene.setMatchOutcome({
+    state,
+    message: outcome.message,
+  });
 }
 
 function setPhase(next: GamePhase): void {
   phase = next;
   const playing = phase === "playing";
   menuScreen.hidden = playing;
-  hud.hidden = !playing;
+  scene.setHudVisible(playing);
   scene.setInputEnabled(playing && !activePanel);
   // Keep UI minimal: no session indicator or auto hints.
   if (!playing) {
@@ -260,17 +227,14 @@ function setPhase(next: GamePhase): void {
 function updateHud(_map: MapDefinition | null, worldState: GameWorld | null): void {
   updateOutcomeOverlay(worldState);
   if (!worldState) {
-    hudSpice.textContent = "—";
-    hudPower.textContent = "—";
+    scene.setHudValues({ spice: "—", power: "—" });
     return;
   }
   const player = worldState.players.player;
-  const activeNodes = worldState.resourceNodes.filter((node) => node.amount > 1);
-  const minUnitCost = Math.min(
-    ...Object.values(worldState.defs.units).map((def) => def.cost.spice),
-  );
-  hudSpice.textContent = `${Math.floor(player.spice)}`;
-  hudPower.textContent = `${Math.floor(player.power)}`;
+  scene.setHudValues({
+    spice: `${Math.floor(player.spice)}`,
+    power: `${Math.floor(player.power)}`,
+  });
 }
 
 function createLobby(): void {
@@ -326,7 +290,13 @@ function beginSelectionDrag(event: PointerEvent): void {
   if (phase !== "playing" || activePanel || event.button !== 0) {
     return;
   }
-  selectionStart = { x: event.clientX, y: event.clientY };
+  const rect = canvasElement.getBoundingClientRect();
+  selectionStart = {
+    clientX: event.clientX,
+    clientY: event.clientY,
+    localX: event.clientX - rect.left,
+    localY: event.clientY - rect.top,
+  };
   isDraggingSelection = true;
   selectionPointerId = event.pointerId;
   hideSelectionRect();
@@ -337,10 +307,15 @@ function updateSelectionDrag(event: PointerEvent): void {
   if (!isDraggingSelection || !selectionStart || phase !== "playing" || activePanel) {
     return;
   }
-  showSelectionRect(selectionStart, { x: event.clientX, y: event.clientY });
-  if (selectionRect.dataset.active === "true") {
-    const rect = selectionRect.getBoundingClientRect();
-    const hovered = scene.pickInRect(rect);
+  const rect = canvasElement.getBoundingClientRect();
+  showSelectionRect(selectionStart, {
+    clientX: event.clientX,
+    clientY: event.clientY,
+    localX: event.clientX - rect.left,
+    localY: event.clientY - rect.top,
+  });
+  if (selectionRectActive && selectionScreenRect) {
+    const hovered = scene.pickInRect(selectionScreenRect);
     scene.setHover(hovered);
   } else {
     scene.setHover([]);
@@ -382,10 +357,10 @@ function onCanvasPointerUp(event: PointerEvent): void {
     return;
   }
   if (isDraggingSelection) {
-    const wasActive = selectionRect.dataset.active === "true";
-    const rect = selectionRect.getBoundingClientRect();
+    const wasActive = selectionRectActive;
+    const rect = selectionScreenRect;
     endSelectionDrag(event);
-    if (world && wasActive) {
+    if (world && wasActive && rect) {
       const rectSelection = scene.pickInRect(rect);
       if (event.ctrlKey) {
         currentSelection = mergeSelections(currentSelection, rectSelection);
@@ -455,6 +430,9 @@ function issueOrderFromPointer(event: PointerEvent): void {
 }
 
 function handleCanvasPointerDown(event: PointerEvent): void {
+  if (scene.handleHudPointer(event)) {
+    return;
+  }
   if (event.pointerType === "touch") {
     activeTouchPointers.add(event.pointerId);
     if (activeTouchPointers.size >= 2) {
@@ -470,6 +448,9 @@ function handleCanvasPointerDown(event: PointerEvent): void {
 }
 
 function handleCanvasPointerMove(event: PointerEvent): void {
+  if (scene.handleHudPointer(event)) {
+    return;
+  }
   if (touchGestureLock) {
     return;
   }
@@ -477,6 +458,9 @@ function handleCanvasPointerMove(event: PointerEvent): void {
 }
 
 function handleCanvasPointerUp(event: PointerEvent): void {
+  if (scene.handleHudPointer(event)) {
+    return;
+  }
   const wasTouchGesture = touchGestureLock;
   if (event.pointerType === "touch") {
     activeTouchPointers.delete(event.pointerId);
@@ -492,6 +476,9 @@ function handleCanvasPointerUp(event: PointerEvent): void {
 }
 
 function handleCanvasPointerCancel(event: PointerEvent): void {
+  if (scene.handleHudPointer(event)) {
+    return;
+  }
   if (event.pointerType === "touch") {
     activeTouchPointers.delete(event.pointerId);
     if (activeTouchPointers.size === 0) {
@@ -529,6 +516,11 @@ function applyVolume(value: number): void {
   valueVolume.textContent = `${value}%`;
 }
 
+scene.setHudCallbacks({
+  onRestart: () => startSession(session ? session.map : preparedMap),
+  onMenu: () => backToMenu(),
+});
+
 createButton.addEventListener("click", () => createLobby());
 startButton.addEventListener("click", () => startSession());
 mapSelect.addEventListener("change", () => {
@@ -547,10 +539,6 @@ sliderVolume.addEventListener("input", () => applyVolume(Number(sliderVolume.val
 sliderCamera.addEventListener("input", () =>
   applyCameraSensitivity(Number(sliderCamera.value) / 100),
 );
-outcomeRestartButton.addEventListener("click", () =>
-  startSession(session ? session.map : preparedMap),
-);
-outcomeMenuButton.addEventListener("click", () => backToMenu());
 
 window.addEventListener("resize", () => scene.resize());
 

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createHudLayer, type HudCallbacks, type HudOutcome, type HudValues } from "./hud";
 import type {
   BuildingDefinition,
   BuildingState,
@@ -24,6 +25,12 @@ export type WorldScene = {
   projectToGround(screenX: number, screenY: number): { x: number; z: number } | null;
   setHover(selection: SelectionGroup): void;
   usePointerHover(): void;
+  setHudVisible(visible: boolean): void;
+  setHudValues(values: HudValues): void;
+  setMatchOutcome(outcome: HudOutcome): void;
+  setSelectionRect(rect: { left: number; top: number; width: number; height: number } | null): void;
+  handleHudPointer(event: PointerEvent): boolean;
+  setHudCallbacks(callbacks: HudCallbacks): void;
   dispose(): void;
 };
 
@@ -40,6 +47,7 @@ export function createWorldScene(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const hudLayer = createHudLayer(renderer);
 
   const camera = new THREE.PerspectiveCamera(
     55,
@@ -1071,6 +1079,7 @@ export function createWorldScene(
     renderer.setPixelRatio(dpr);
     camera.aspect = Math.max(1e-4, width / height);
     camera.updateProjectionMatrix();
+    hudLayer.resize(width, height);
   }
 
   function render(): void {
@@ -1081,6 +1090,7 @@ export function createWorldScene(
     applyMovement(deltaSeconds);
     updateCamera(deltaSeconds);
     renderer.render(scene, camera);
+    hudLayer.render(renderer);
   }
 
   function onWheel(event: WheelEvent): void {
@@ -1097,6 +1107,9 @@ export function createWorldScene(
   }
 
   function onTouchPointerDown(event: PointerEvent): void {
+    if (hudLayer.handlePointer(event)) {
+      return;
+    }
     if (event.pointerType !== "touch") {
       return;
     }
@@ -1112,6 +1125,9 @@ export function createWorldScene(
   }
 
   function onTouchPointerMove(event: PointerEvent): void {
+    if (hudLayer.handlePointer(event)) {
+      return;
+    }
     if (event.pointerType !== "touch" || !touchState.points.has(event.pointerId)) {
       return;
     }
@@ -1125,6 +1141,9 @@ export function createWorldScene(
   }
 
   function onTouchPointerUp(event: PointerEvent): void {
+    if (hudLayer.handlePointer(event)) {
+      return;
+    }
     if (event.pointerType !== "touch") {
       return;
     }
@@ -1226,6 +1245,13 @@ export function createWorldScene(
       setHoverGroup(selection);
     },
     usePointerHover,
+    setHudVisible: (visible: boolean) => hudLayer.setVisible(visible),
+    setHudValues: (values: HudValues) => hudLayer.setValues(values),
+    setMatchOutcome: (outcome: HudOutcome) => hudLayer.setOutcome(outcome),
+    setSelectionRect: (rect: { left: number; top: number; width: number; height: number } | null) =>
+      hudLayer.setSelectionRect(rect),
+    handleHudPointer: (event: PointerEvent) => hudLayer.handlePointer(event),
+    setHudCallbacks: (callbacks: HudCallbacks) => hudLayer.setCallbacks(callbacks),
     dispose: () => {
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("pointerdown", onTouchPointerDown);
