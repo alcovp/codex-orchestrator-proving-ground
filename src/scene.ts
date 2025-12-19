@@ -66,6 +66,10 @@ export function createWorldScene(
   let mapHalfHeight = 0;
   let resourceGroup: THREE.Group | null = null;
   let startGroup: THREE.Group | null = null;
+  const resourceMeshes = new Map<
+    string,
+    { body: THREE.Mesh; ring: THREE.Mesh; maxAmount: number }
+  >();
   const buildingMeshes = new Map<
     string,
     { group: THREE.Group; body: THREE.Mesh; ring: THREE.Mesh }
@@ -191,6 +195,7 @@ export function createWorldScene(
 
   function buildResourceSpots(map: MapDefinition): void {
     disposeGroup(resourceGroup);
+    resourceMeshes.clear();
     resourceGroup = new THREE.Group();
     map.resources.forEach((spot) => {
       const radius = Math.max(0.8, spot.radius);
@@ -202,6 +207,7 @@ export function createWorldScene(
         roughness: 0.64,
         metalness: 0.02,
       });
+      material.transparent = true;
       const mesh = new THREE.Mesh(cylinder, material);
       mesh.position.set(spot.position.x, height / 2, spot.position.z);
       mesh.castShadow = true;
@@ -224,6 +230,9 @@ export function createWorldScene(
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(spot.position.x, 0.04, spot.position.z);
       resourceGroup?.add(ring);
+
+      const resourceId = `node-${spot.id}`;
+      resourceMeshes.set(resourceId, { body: mesh, ring, maxAmount: 0 });
     });
     scene.add(resourceGroup);
   }
@@ -429,6 +438,29 @@ export function createWorldScene(
       if (!seen.has(id)) {
         disposeEntityMesh(entry);
         unitMeshes.delete(id);
+      }
+    });
+  }
+
+  function syncResourceMeshes(world: GameWorld): void {
+    world.resourceNodes.forEach((node) => {
+      const entry = resourceMeshes.get(node.id) ?? resourceMeshes.get(node.spotId);
+      if (!entry) {
+        return;
+      }
+      if (entry.maxAmount <= 0) {
+        entry.maxAmount = node.maxAmount || node.amount || 1;
+      }
+      const maxAmount = entry.maxAmount || node.maxAmount || 1;
+      const ratio = maxAmount > 0 ? THREE.MathUtils.clamp(node.amount / maxAmount, 0, 1) : 0;
+      entry.body.scale.y = 0.2 + ratio * 0.8;
+      entry.body.visible = node.amount > 0.2;
+      entry.ring.visible = node.amount > 0.2;
+      if (entry.ring.material instanceof THREE.Material) {
+        entry.ring.material.opacity = 0.2 + ratio * 0.5;
+      }
+      if (entry.body.material instanceof THREE.Material) {
+        entry.body.material.opacity = 0.5 + ratio * 0.5;
       }
     });
   }
@@ -706,6 +738,7 @@ export function createWorldScene(
     resize,
     setInputEnabled,
     updateWorld: (world: GameWorld, selection: Selection | null) => {
+      syncResourceMeshes(world);
       syncBuildingMeshes(world, selection);
       syncUnitMeshes(world, selection);
       rebuildPickTargets();
@@ -724,6 +757,7 @@ export function createWorldScene(
       disposeGroup(startGroup);
       resourceGroup = null;
       startGroup = null;
+      resourceMeshes.clear();
       if (terrain) {
         terrain.geometry.dispose();
         if (terrain.material instanceof THREE.Material) {

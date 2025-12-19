@@ -170,11 +170,15 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   const minUnitCost = Math.min(
     ...Object.values(worldState.defs.units).map((def) => def.cost.spice),
   );
-  let status = "Добыча спайса идет.";
-  if (!activeNodes.length) {
-    status = "Залежи спайса исчерпаны. Добыча остановлена.";
-  } else if (player.spice < minUnitCost) {
-    status = `Недостаточно спайса: минимум ${minUnitCost} для заказа юнитов.`;
+  let status =
+    worldState.statusMessage ??
+    "Добыча спайса идет. Рабочие автоматически возят груз в переработку.";
+  if (!worldState.statusMessage) {
+    if (!activeNodes.length) {
+      status = "Залежи спайса исчерпаны. Добыча остановлена.";
+    } else if (player.spice < minUnitCost) {
+      status = `Недостаточно спайса: минимум ${minUnitCost} для заказа юнитов.`;
+    }
   }
   hudStatus.textContent = `${status} ${baseHint}`;
   hudSpice.textContent = `${Math.floor(player.spice)} спайс`;
@@ -203,8 +207,24 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   } else {
     const def = worldState.defs.units[target.typeId];
     hudSelectionName.textContent = `${def.name} (${target.owner === "player" ? "Вы" : "ИИ"})`;
-    hudSelectionDetails.textContent = `Прочность: ${Math.floor(target.hp)} / ${def.maxHp}`;
-    hudProduction.textContent = "";
+    const baseDetails = `Прочность: ${Math.floor(target.hp)} / ${def.maxHp}`;
+    if (target.typeId === "worker" && target.harvest) {
+      const capacity = def.carryCapacity ?? 0;
+      const cargo = Math.floor(target.harvest.carried ?? 0);
+      let phase = "Стоит";
+      if (target.harvest.mode === "toResource") {
+        phase = "К залежи";
+      } else if (target.harvest.mode === "gathering") {
+        phase = "Сбор спайса";
+      } else if (target.harvest.mode === "toDropoff") {
+        phase = "Везет на базу";
+      }
+      hudSelectionDetails.textContent = `${baseDetails}. Груз: ${cargo}/${capacity}`;
+      hudProduction.textContent = `Добыча: ${phase}`;
+    } else {
+      hudSelectionDetails.textContent = baseDetails;
+      hudProduction.textContent = "";
+    }
   }
 }
 
