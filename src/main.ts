@@ -1,15 +1,6 @@
 import { createWorldScene } from "./scene";
 import { maps, worldSettings } from "./settings";
-import type {
-  BuildingState,
-  GamePhase,
-  GameSession,
-  GameWorld,
-  MapDefinition,
-  Selection,
-  SelectionGroup,
-  UnitState,
-} from "./types";
+import type { GamePhase, GameSession, GameWorld, MapDefinition, Selection, SelectionGroup, UnitState } from "./types";
 import { createGameWorld, findSelection, issueOrder, updateGameWorld } from "./world";
 
 function requireElement<T extends Element>(el: T | null, name: string): T {
@@ -47,14 +38,6 @@ const hud = requireElement(
   document.querySelector<HTMLElement>("#hud"),
   "#hud",
 );
-const hudMapName = requireElement(
-  document.querySelector<HTMLElement>("#hud-map-name"),
-  "#hud-map-name",
-);
-const hudStatus = requireElement(
-  document.querySelector<HTMLElement>("#hud-status"),
-  "#hud-status",
-);
 const selectionRect = requireElement(
   document.querySelector<HTMLElement>("#selection-rect"),
   "#selection-rect",
@@ -62,14 +45,6 @@ const selectionRect = requireElement(
 const lobbyStatus = requireElement(
   document.querySelector<HTMLElement>("#lobby-status"),
   "#lobby-status",
-);
-const backToMenuButton = requireElement(
-  document.querySelector<HTMLButtonElement>("#back-to-menu"),
-  "#back-to-menu",
-);
-const restartButton = requireElement(
-  document.querySelector<HTMLButtonElement>("#restart-game"),
-  "#restart-game",
 );
 const hudSpice = requireElement(
   document.querySelector<HTMLElement>("#hud-spice"),
@@ -79,31 +54,11 @@ const hudPower = requireElement(
   document.querySelector<HTMLElement>("#hud-power"),
   "#hud-power",
 );
-const hudSelectionName = requireElement(
-  document.querySelector<HTMLElement>("#hud-selection-name"),
-  "#hud-selection-name",
-);
-const hudSelectionDetails = requireElement(
-  document.querySelector<HTMLElement>("#hud-selection-details"),
-  "#hud-selection-details",
-);
-const hudProduction = requireElement(
-  document.querySelector<HTMLElement>("#hud-production"),
-  "#hud-production",
-);
 const openSettingsButtons = [
   requireElement(document.querySelector<HTMLButtonElement>("#open-settings"), "#open-settings"),
-  requireElement(
-    document.querySelector<HTMLButtonElement>("#hud-open-settings"),
-    "#hud-open-settings",
-  ),
 ];
 const openControlsButtons = [
   requireElement(document.querySelector<HTMLButtonElement>("#open-controls"), "#open-controls"),
-  requireElement(
-    document.querySelector<HTMLButtonElement>("#hud-open-controls"),
-    "#hud-open-controls",
-  ),
 ];
 const settingsPanel = requireElement(
   document.querySelector<HTMLElement>("#settings-panel"),
@@ -136,18 +91,6 @@ const valueVolume = requireElement(
 const valueCamera = requireElement(
   document.querySelector<HTMLElement>("#value-camera"),
   "#value-camera",
-);
-const sessionIndicator = requireElement(
-  document.querySelector<HTMLElement>("#session-indicator"),
-  "#session-indicator",
-);
-const inlineHints = requireElement(
-  document.querySelector<HTMLElement>("#inline-hints"),
-  "#inline-hints",
-);
-const hideHintsButton = requireElement(
-  document.querySelector<HTMLButtonElement>("#hide-hints"),
-  "#hide-hints",
 );
 const outcomePanel = requireElement(
   document.querySelector<HTMLElement>("#match-outcome"),
@@ -201,7 +144,6 @@ let currentSelection: SelectionGroup = [];
 let isDraggingSelection = false;
 let selectionStart: { x: number; y: number } | null = null;
 let activePanel: HTMLElement | null = null;
-let hintsDismissed = false;
 const uiSettings = {
   volume: 70,
   cameraSensitivity: 1,
@@ -245,27 +187,6 @@ function toggleSelection(base: SelectionGroup, target: Selection): SelectionGrou
     return base.filter((item) => selectionKey(item) !== key);
   }
   return [...base, target];
-}
-
-function updateSessionStatus(state: GamePhase | "ended"): void {
-  let label = "Меню";
-  if (state === "playing") {
-    label = "Матч идет";
-  } else if (state === "ended") {
-    label = "Матч завершен";
-  }
-  sessionIndicator.textContent = label;
-  sessionIndicator.dataset.state = state === "ended" ? "ended" : state === "playing" ? "playing" : "menu";
-}
-
-function setHintsVisible(visible: boolean): void {
-  inlineHints.dataset.visible = visible ? "true" : "false";
-}
-
-function revealHints(): void {
-  if (!hintsDismissed) {
-    setHintsVisible(true);
-  }
 }
 
 function isVisibleToPlayer(worldState: GameWorld, position: { x: number; z: number }): boolean {
@@ -327,34 +248,17 @@ function setPhase(next: GamePhase): void {
   menuScreen.hidden = playing;
   hud.hidden = !playing;
   scene.setInputEnabled(playing && !activePanel);
-  updateSessionStatus(playing ? "playing" : "menu");
-  if (playing) {
-    revealHints();
-  } else {
-    setHintsVisible(false);
-  }
+  // Keep UI minimal: no session indicator or auto hints.
   if (!playing) {
     hideSelectionRect();
   }
 }
 
-function updateHud(map: MapDefinition | null, worldState: GameWorld | null): void {
-  hudMapName.textContent = map?.name ?? "Нет карты";
-  const baseHint =
-    "Камера: WASD/края экрана, колесо — зум. ЛКМ — выбор, рамка — множественный выбор. Туман войны скрывает неразведанные зоны.";
+function updateHud(_map: MapDefinition | null, worldState: GameWorld | null): void {
   updateOutcomeOverlay(worldState);
-  if (worldState?.outcome) {
-    updateSessionStatus("ended");
-  } else {
-    updateSessionStatus(phase === "playing" ? "playing" : "menu");
-  }
   if (!worldState) {
-    hudStatus.textContent = "Создайте матч и нажмите «Начать». " + baseHint;
     hudSpice.textContent = "—";
     hudPower.textContent = "—";
-    hudSelectionName.textContent = "Ничего не выбрано";
-    hudSelectionDetails.textContent = "Выделите здание или юнит.";
-    hudProduction.textContent = "";
     return;
   }
   const player = worldState.players.player;
@@ -362,124 +266,8 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   const minUnitCost = Math.min(
     ...Object.values(worldState.defs.units).map((def) => def.cost.spice),
   );
-  let status: string;
-  if (worldState.outcome) {
-    status = worldState.outcome.message;
-  } else {
-    status =
-      worldState.statusMessage ??
-      "Добыча спайса идет. Рабочие автоматически возят груз в переработку.";
-    if (!worldState.statusMessage) {
-      if (!activeNodes.length) {
-        status = "Залежи спайса исчерпаны. Добыча остановлена.";
-      } else if (player.spice < minUnitCost) {
-        status = `Недостаточно спайса: минимум ${minUnitCost} для заказа юнитов.`;
-      }
-    }
-  }
-  hudStatus.textContent = `${status} ${baseHint}`;
-  hudSpice.textContent = `${Math.floor(player.spice)} спайс`;
-  hudPower.textContent = `${Math.floor(player.power)} энергия`;
-
-  const resolvedSelections = currentSelection
-    .map((item) => {
-      const entity = findSelection(worldState, item);
-      return entity ? { selection: item, entity } : null;
-    })
-    .filter(
-      (entry): entry is { selection: Selection; entity: UnitState | BuildingState } =>
-        !!entry && !!entry.entity,
-    );
-
-  const visibleSelections = resolvedSelections.filter(({ entity }) => {
-    if (!entity) {
-      return false;
-    }
-    return entity.owner === "player" || isVisibleToPlayer(worldState, entity.position);
-  });
-
-  if (!visibleSelections.length) {
-    hudSelectionName.textContent = "Ничего не выбрано";
-    hudSelectionDetails.textContent = resolvedSelections.length
-      ? "Цель скрыта туманом войны."
-      : "Кликните по объекту на поле.";
-    hudProduction.textContent = "";
-    return;
-  }
-
-  const units = visibleSelections.filter((entry) => entry.entity && !("queue" in entry.entity));
-  const buildings = visibleSelections.filter((entry) => entry.entity && "queue" in entry.entity);
-
-  if (visibleSelections.length > 1) {
-    if (units.length && !buildings.length) {
-      const counts = units.reduce<Record<string, number>>((acc, entry) => {
-        const unit = entry.entity;
-        if (unit && !("queue" in unit)) {
-          acc[unit.typeId] = (acc[unit.typeId] ?? 0) + 1;
-        }
-        return acc;
-      }, {});
-      const breakdown = Object.entries(counts)
-        .map(([typeId, count]) => `${worldState.defs.units[typeId as keyof typeof worldState.defs.units].name} ×${count}`)
-        .join(", ");
-      hudSelectionName.textContent = `Выбрано юнитов: ${units.length}`;
-      hudSelectionDetails.textContent = breakdown || "Несколько юнитов.";
-    } else if (buildings.length && !units.length) {
-      const counts = buildings.reduce<Record<string, number>>((acc, entry) => {
-        const building = entry.entity;
-        if (building && "queue" in building) {
-          acc[building.typeId] = (acc[building.typeId] ?? 0) + 1;
-        }
-        return acc;
-      }, {});
-      const breakdown = Object.entries(counts)
-        .map(([typeId, count]) => `${worldState.defs.buildings[typeId as keyof typeof worldState.defs.buildings].name} ×${count}`)
-        .join(", ");
-      hudSelectionName.textContent = `Выбрано зданий: ${buildings.length}`;
-      hudSelectionDetails.textContent = breakdown || "Несколько зданий.";
-    } else {
-      hudSelectionName.textContent = `Выбрано: юнитов ${units.length}, зданий ${buildings.length}`;
-      hudSelectionDetails.textContent = "Приказы применяются только к юнитам.";
-    }
-    hudProduction.textContent = "";
-    return;
-  }
-
-  const target = visibleSelections[0]!.entity!;
-  if ("queue" in target) {
-    const def = worldState.defs.buildings[target.typeId];
-    hudSelectionName.textContent = `${def.name} (${target.owner === "player" ? "Вы" : "ИИ"})`;
-    hudSelectionDetails.textContent = `Прочность: ${Math.floor(target.hp)} / ${def.maxHp}`;
-    if (target.queue.length) {
-      const next = target.queue[0]!;
-      const unitDef = worldState.defs.units[next.unitTypeId];
-      const remaining = Math.max(0, Math.ceil((next.readyAt - performance.now()) / 1000));
-      hudProduction.textContent = `В очереди: ${unitDef.name} • готов через ${remaining} с (${target.queue.length} шт.)`;
-    } else {
-      hudProduction.textContent = "Очередь пуста";
-    }
-  } else {
-    const def = worldState.defs.units[target.typeId];
-    hudSelectionName.textContent = `${def.name} (${target.owner === "player" ? "Вы" : "ИИ"})`;
-    const baseDetails = `Прочность: ${Math.floor(target.hp)} / ${def.maxHp}`;
-    if (target.typeId === "worker" && target.harvest) {
-      const capacity = def.carryCapacity ?? 0;
-      const cargo = Math.floor(target.harvest.carried ?? 0);
-      let phase = "Стоит";
-      if (target.harvest.mode === "toResource") {
-        phase = "К залежи";
-      } else if (target.harvest.mode === "gathering") {
-        phase = "Сбор спайса";
-      } else if (target.harvest.mode === "toDropoff") {
-        phase = "Везет на базу";
-      }
-      hudSelectionDetails.textContent = `${baseDetails}. Груз: ${cargo}/${capacity}`;
-      hudProduction.textContent = `Добыча: ${phase}`;
-    } else {
-      hudSelectionDetails.textContent = baseDetails;
-      hudProduction.textContent = "";
-    }
-  }
+  hudSpice.textContent = `${Math.floor(player.spice)}`;
+  hudPower.textContent = `${Math.floor(player.power)}`;
 }
 
 function createLobby(): void {
@@ -520,7 +308,6 @@ function backToMenu(): void {
   currentSelection = [];
   preparedMap = initialMap ?? null;
   updateOutcomeOverlay(null);
-  hintsDismissed = false;
   closePanel();
   setPhase("menu");
   if (preparedMap) {
@@ -672,10 +459,6 @@ function applyVolume(value: number): void {
 
 createButton.addEventListener("click", () => createLobby());
 startButton.addEventListener("click", () => startSession());
-backToMenuButton.addEventListener("click", () => backToMenu());
-restartButton.addEventListener("click", () =>
-  startSession(session ? session.map : preparedMap),
-);
 mapSelect.addEventListener("change", () => {
   updateMapMeta(findMapById(mapSelect.value) ?? preparedMap);
 });
@@ -692,10 +475,6 @@ sliderVolume.addEventListener("input", () => applyVolume(Number(sliderVolume.val
 sliderCamera.addEventListener("input", () =>
   applyCameraSensitivity(Number(sliderCamera.value) / 100),
 );
-hideHintsButton.addEventListener("click", () => {
-  hintsDismissed = true;
-  setHintsVisible(false);
-});
 outcomeRestartButton.addEventListener("click", () =>
   startSession(session ? session.map : preparedMap),
 );

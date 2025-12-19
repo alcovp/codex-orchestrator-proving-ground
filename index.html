@@ -67,54 +67,6 @@
         z-index: 1;
         pointer-events: none;
       }
-      .meta-strip {
-        position: absolute;
-        top: 18px;
-        left: 18px;
-        right: 18px;
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        justify-content: space-between;
-        pointer-events: none;
-      }
-      .meta-strip .logo {
-        background: rgba(255, 196, 128, 0.12);
-        border: 1px solid var(--border);
-        padding: 10px 14px;
-        border-radius: 12px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-        color: var(--accent);
-        font-family: "Exo 2", "Space Grotesk", sans-serif;
-        pointer-events: auto;
-      }
-      .meta-strip .pill {
-        display: inline-flex;
-        gap: 10px;
-        align-items: center;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(22, 17, 13, 0.82);
-        border: 1px solid var(--border);
-        color: var(--muted);
-        font-size: 13px;
-        pointer-events: auto;
-      }
-      .meta-strip .pill span:not(:last-child)::after {
-        content: "•";
-        margin: 0 8px;
-        color: rgba(255, 196, 128, 0.4);
-      }
-      .meta-strip .pill[data-state="playing"] {
-        color: #c5f2ff;
-        border-color: rgba(118, 212, 255, 0.38);
-      }
-      .meta-strip .pill[data-state="ended"] {
-        color: var(--danger);
-        border-color: rgba(255, 180, 162, 0.55);
-      }
       .menu {
         position: absolute;
         top: 50%;
@@ -156,13 +108,7 @@
         font-size: 14px;
       }
       .map-meta {
-        margin-top: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(26, 20, 16, 0.7);
-        border: 1px dashed var(--border);
-        color: #d4c3a9;
-        font-size: 14px;
+        display: none;
       }
       .map-meta .label {
         text-transform: uppercase;
@@ -216,57 +162,46 @@
       }
       .hud {
         position: absolute;
-        bottom: 24px;
-        left: 24px;
-        right: 24px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
-        align-items: flex-start;
-        padding: 14px 16px;
+        top: 18px;
+        right: 18px;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(140px, auto);
+        gap: 10px;
+        padding: 10px 12px;
         border-radius: 12px;
-        background: linear-gradient(90deg, rgba(18, 14, 11, 0.78), rgba(22, 17, 14, 0.68));
+        background: rgba(15, 11, 9, 0.82);
         border: 1px solid var(--border);
-        pointer-events: auto;
+        backdrop-filter: blur(4px);
+        pointer-events: none;
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
       }
-      .hud .block {
+      .hud .tile {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        min-width: 180px;
+        gap: 3px;
+        min-width: 140px;
       }
       .hud .label {
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: #b59d7a;
       }
       .hud .value {
-        font-size: 18px;
+        font-size: 19px;
+        font-weight: 700;
         color: var(--accent);
+        line-height: 1.1;
       }
-      .hud .sub {
-        font-size: 13px;
-        color: #d2c3ab;
-        max-width: 320px;
-      }
-      .hud .production {
-        color: #b5f3c0;
-      }
-      .hud .resources .value {
-        font-size: 20px;
+      .hud .value.resources {
         color: #f7c76b;
       }
-      .hud .resources .sub {
-        color: #f0e5d2;
-      }
-      .hud .actions {
-        display: flex;
-        gap: 10px;
-        margin-left: auto;
-      }
-      .hud .actions button {
-        min-width: 120px;
+      .hud .sub {
+        font-size: 12px;
+        color: #d2c3ab;
+        line-height: 1.35;
+        max-width: 240px;
       }
       .selection-rect {
         position: absolute;
@@ -399,53 +334,13 @@
       .match-outcome .actions {
         justify-content: center;
       }
-      .inline-hints {
-        position: absolute;
-        right: 22px;
-        top: 110px;
-        width: 260px;
-        background: rgba(20, 15, 12, 0.9);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px 14px;
-        box-shadow: var(--shadow);
-        pointer-events: auto;
-        display: none;
-      }
-      .inline-hints[data-visible="true"] {
-        display: block;
-      }
-      .inline-hints .title {
-        font-weight: 700;
-        color: var(--accent);
-        margin-bottom: 6px;
-      }
-      .inline-hints ul {
-        margin: 0 0 8px 16px;
-        padding: 0;
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.4;
-      }
-      .inline-hints button {
-        width: 100%;
-      }
     </style>
   </head>
   <body>
     <div class="ui-layer">
-      <div class="meta-strip">
-        <div class="logo">Spice Frontier</div>
-        <div class="pill" id="session-indicator" data-state="menu">Меню</div>
-        <div class="pill hint">
-          <span>WASD / края — камера</span>
-          <span>ЛКМ — выбор</span>
-          <span>ПКМ — приказ</span>
-        </div>
-      </div>
       <div class="menu" id="menu-screen">
-        <h1>Spice Frontier</h1>
-        <p>Прототип одиночной RTS в духе Dune. Создай игру, выбери карту и жми «Начать».</p>
+        <h1>Меню</h1>
+        <p>Создайте игру, выберите карту и нажмите «Начать».</p>
         <label for="map-select">Карта</label>
         <select id="map-select" name="map"></select>
         <div class="map-meta">
@@ -463,38 +358,14 @@
         </div>
       </div>
       <div class="hud" id="hud" hidden>
-        <div class="block">
-          <div class="label">Карта</div>
-          <div class="value" id="hud-map-name"></div>
-          <div class="sub" id="hud-status"></div>
+        <div class="tile resources">
+          <div class="label">Спайс</div>
+          <div class="value resources" id="hud-spice"></div>
         </div>
-        <div class="block resources">
-          <div class="label">Ресурсы</div>
-          <div class="value" id="hud-spice"></div>
-          <div class="sub" id="hud-power"></div>
+        <div class="tile resources">
+          <div class="label">Энергия</div>
+          <div class="value" id="hud-power"></div>
         </div>
-        <div class="block selection">
-          <div class="label">Выбор</div>
-          <div class="value" id="hud-selection-name"></div>
-          <div class="sub" id="hud-selection-details"></div>
-          <div class="sub production" id="hud-production"></div>
-        </div>
-        <div class="actions">
-          <button id="restart-game" class="secondary">Рестарт</button>
-          <button id="hud-open-controls" class="secondary">Управление</button>
-          <button id="hud-open-settings" class="secondary">Настройки</button>
-          <button id="back-to-menu">В меню</button>
-        </div>
-      </div>
-      <div class="inline-hints" id="inline-hints" data-visible="true">
-        <div class="title">Подсказки управления</div>
-        <ul>
-          <li>WASD или края экрана — панорамирование камеры.</li>
-          <li>Колесо мыши — зум. ПКМ — приказ перемещения/атаки.</li>
-          <li>Выбор: ЛКМ по объекту или рамка удержанием.</li>
-          <li>Рестарт и меню доступны снизу справа в HUD.</li>
-        </ul>
-        <button id="hide-hints" class="secondary">Скрыть подсказки</button>
       </div>
       <div class="match-outcome" id="match-outcome" hidden>
         <div class="badge" id="outcome-label">Матч завершен</div>
