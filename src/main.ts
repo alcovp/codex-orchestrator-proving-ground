@@ -24,6 +24,10 @@ const mapSelect = requireElement(
   document.querySelector<HTMLSelectElement>("#map-select"),
   "#map-select",
 );
+const mapDetails = requireElement(
+  document.querySelector<HTMLElement>("#map-details"),
+  "#map-details",
+);
 const createButton = requireElement(
   document.querySelector<HTMLButtonElement>("#create-game"),
   "#create-game",
@@ -130,6 +134,38 @@ const valueCamera = requireElement(
   document.querySelector<HTMLElement>("#value-camera"),
   "#value-camera",
 );
+const sessionIndicator = requireElement(
+  document.querySelector<HTMLElement>("#session-indicator"),
+  "#session-indicator",
+);
+const inlineHints = requireElement(
+  document.querySelector<HTMLElement>("#inline-hints"),
+  "#inline-hints",
+);
+const hideHintsButton = requireElement(
+  document.querySelector<HTMLButtonElement>("#hide-hints"),
+  "#hide-hints",
+);
+const outcomePanel = requireElement(
+  document.querySelector<HTMLElement>("#match-outcome"),
+  "#match-outcome",
+);
+const outcomeLabel = requireElement(
+  document.querySelector<HTMLElement>("#outcome-label"),
+  "#outcome-label",
+);
+const outcomeMessage = requireElement(
+  document.querySelector<HTMLElement>("#outcome-message"),
+  "#outcome-message",
+);
+const outcomeRestartButton = requireElement(
+  document.querySelector<HTMLButtonElement>("#outcome-restart"),
+  "#outcome-restart",
+);
+const outcomeMenuButton = requireElement(
+  document.querySelector<HTMLButtonElement>("#outcome-menu"),
+  "#outcome-menu",
+);
 
 const scene = createWorldScene(canvasElement, worldSettings);
 const emptyMap: MapDefinition = {
@@ -149,6 +185,10 @@ maps.forEach((map) => {
   option.textContent = `${map.name} — ${map.description}`;
   mapSelect.appendChild(option);
 });
+if (initialMap) {
+  mapSelect.value = initialMap.id;
+  updateMapMeta(initialMap);
+}
 
 let phase: GamePhase = "menu";
 let session: GameSession | null = null;
@@ -158,6 +198,7 @@ let currentSelection: Selection | null = null;
 let isDraggingSelection = false;
 let selectionStart: { x: number; y: number } | null = null;
 let activePanel: HTMLElement | null = null;
+let hintsDismissed = false;
 const uiSettings = {
   volume: 70,
   cameraSensitivity: 1,
@@ -165,6 +206,37 @@ const uiSettings = {
 
 function findMapById(id: string): MapDefinition | null {
   return maps.find((map) => map.id === id) ?? null;
+}
+
+function updateMapMeta(map: MapDefinition | null): void {
+  if (!map) {
+    mapDetails.textContent = "Нет данных по карте.";
+    return;
+  }
+  const deposits = map.resources.length;
+  const starts = map.startLocations.length;
+  mapDetails.textContent = `${map.name}: ${map.size.width}×${map.size.height}, стартовых позиций — ${starts}, залежей спайса — ${deposits}.`;
+}
+
+function updateSessionStatus(state: GamePhase | "ended"): void {
+  let label = "Меню";
+  if (state === "playing") {
+    label = "Матч идет";
+  } else if (state === "ended") {
+    label = "Матч завершен";
+  }
+  sessionIndicator.textContent = label;
+  sessionIndicator.dataset.state = state === "ended" ? "ended" : state === "playing" ? "playing" : "menu";
+}
+
+function setHintsVisible(visible: boolean): void {
+  inlineHints.dataset.visible = visible ? "true" : "false";
+}
+
+function revealHints(): void {
+  if (!hintsDismissed) {
+    setHintsVisible(true);
+  }
 }
 
 function isVisibleToPlayer(worldState: GameWorld, position: { x: number; z: number }): boolean {
@@ -206,12 +278,32 @@ function showSelectionRect(
   selectionRect.dataset.active = "true";
 }
 
+function updateOutcomeOverlay(worldState: GameWorld | null): void {
+  const outcome = worldState?.outcome ?? null;
+  if (!outcome) {
+    outcomePanel.hidden = true;
+    outcomePanel.dataset.state = "";
+    return;
+  }
+  const state = outcome.winner === "player" ? "win" : outcome.winner === "ai" ? "lose" : "draw";
+  outcomePanel.hidden = false;
+  outcomePanel.dataset.state = state;
+  outcomeLabel.textContent = state === "win" ? "Победа" : state === "lose" ? "Поражение" : "Ничья";
+  outcomeMessage.textContent = outcome.message;
+}
+
 function setPhase(next: GamePhase): void {
   phase = next;
   const playing = phase === "playing";
   menuScreen.hidden = playing;
   hud.hidden = !playing;
   scene.setInputEnabled(playing && !activePanel);
+  updateSessionStatus(playing ? "playing" : "menu");
+  if (playing) {
+    revealHints();
+  } else {
+    setHintsVisible(false);
+  }
   if (!playing) {
     hideSelectionRect();
   }
@@ -221,6 +313,12 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
   hudMapName.textContent = map?.name ?? "Нет карты";
   const baseHint =
     "Камера: WASD/края экрана, колесо — зум. ЛКМ — выбор, рамка — множественный выбор. Туман войны скрывает неразведанные зоны.";
+  updateOutcomeOverlay(worldState);
+  if (worldState?.outcome) {
+    updateSessionStatus("ended");
+  } else {
+    updateSessionStatus(phase === "playing" ? "playing" : "menu");
+  }
   if (!worldState) {
     hudStatus.textContent = "Создайте матч и нажмите «Начать». " + baseHint;
     hudSpice.textContent = "—";
@@ -306,6 +404,7 @@ function updateHud(map: MapDefinition | null, worldState: GameWorld | null): voi
 function createLobby(): void {
   const selected = findMapById(mapSelect.value) ?? initialMap;
   preparedMap = selected ?? null;
+  updateMapMeta(preparedMap);
   if (preparedMap) {
     lobbyStatus.textContent = `Лобби создано: ${preparedMap.name}`;
     lobbyStatus.dataset.state = "ready";
@@ -322,7 +421,9 @@ function startSession(mapOverride?: MapDefinition | null): void {
     lobbyStatus.dataset.state = "error";
     return;
   }
+  updateMapMeta(map);
   closePanel();
+  updateOutcomeOverlay(null);
   world = createGameWorld(map, performance.now());
   currentSelection = null;
   scene.setMap(map);
@@ -337,10 +438,16 @@ function backToMenu(): void {
   world = null;
   currentSelection = null;
   preparedMap = initialMap ?? null;
+  updateOutcomeOverlay(null);
+  hintsDismissed = false;
   closePanel();
   setPhase("menu");
+  if (preparedMap) {
+    mapSelect.value = preparedMap.id;
+  }
   lobbyStatus.textContent = "Выберите карту и создайте игру.";
   lobbyStatus.dataset.state = "idle";
+  updateMapMeta(preparedMap);
   updateHud(preparedMap, world);
 }
 
@@ -466,6 +573,9 @@ backToMenuButton.addEventListener("click", () => backToMenu());
 restartButton.addEventListener("click", () =>
   startSession(session ? session.map : preparedMap),
 );
+mapSelect.addEventListener("change", () => {
+  updateMapMeta(findMapById(mapSelect.value) ?? preparedMap);
+});
 canvasElement.addEventListener("pointerdown", (event) => beginSelectionDrag(event));
 canvasElement.addEventListener("pointermove", (event) => updateSelectionDrag(event));
 canvasElement.addEventListener("pointerup", (event) => onCanvasPointerUp(event));
@@ -479,6 +589,14 @@ sliderVolume.addEventListener("input", () => applyVolume(Number(sliderVolume.val
 sliderCamera.addEventListener("input", () =>
   applyCameraSensitivity(Number(sliderCamera.value) / 100),
 );
+hideHintsButton.addEventListener("click", () => {
+  hintsDismissed = true;
+  setHintsVisible(false);
+});
+outcomeRestartButton.addEventListener("click", () =>
+  startSession(session ? session.map : preparedMap),
+);
+outcomeMenuButton.addEventListener("click", () => backToMenu());
 
 window.addEventListener("resize", () => scene.resize());
 

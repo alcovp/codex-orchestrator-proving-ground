@@ -8,8 +8,22 @@
     />
     <title>Dune RTS Prototype</title>
     <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Exo+2:wght@600;700&display=swap");
       :root {
         color-scheme: dark;
+        --bg: #0b0907;
+        --bg-2: #120d0a;
+        --bg-soft: rgba(20, 15, 12, 0.7);
+        --border: rgba(255, 196, 128, 0.16);
+        --border-strong: rgba(255, 196, 128, 0.3);
+        --text: #e8e0d6;
+        --muted: #c4b7a3;
+        --accent: #f6d9a1;
+        --accent-strong: #e3b464;
+        --pill: rgba(255, 196, 128, 0.12);
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        --success: #8ff2a9;
+        --danger: #ffb4a2;
       }
       * {
         box-sizing: border-box;
@@ -20,9 +34,23 @@
         height: 100%;
         margin: 0;
         overflow: hidden;
-        background: radial-gradient(circle at 20% 20%, #1c1410, #0a0806 55%);
-        font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
-        color: #e8e0d6;
+        background:
+          radial-gradient(circle at 18% 18%, #1b130f, #0a0806 55%),
+          linear-gradient(135deg, rgba(227, 180, 100, 0.06), rgba(0, 0, 0, 0) 48%);
+        font-family: "Space Grotesk", "Exo 2", "Segoe UI", system-ui, -apple-system,
+          sans-serif;
+        color: var(--text);
+      }
+      body::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+        background-size: 22px 22px, 22px 22px;
+        opacity: 0.5;
       }
       canvas {
         position: absolute;
@@ -39,29 +67,78 @@
         z-index: 1;
         pointer-events: none;
       }
+      .meta-strip {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        right: 18px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none;
+      }
+      .meta-strip .logo {
+        background: rgba(255, 196, 128, 0.12);
+        border: 1px solid var(--border);
+        padding: 10px 14px;
+        border-radius: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--accent);
+        font-family: "Exo 2", "Space Grotesk", sans-serif;
+        pointer-events: auto;
+      }
+      .meta-strip .pill {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(22, 17, 13, 0.82);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 13px;
+        pointer-events: auto;
+      }
+      .meta-strip .pill span:not(:last-child)::after {
+        content: "•";
+        margin: 0 8px;
+        color: rgba(255, 196, 128, 0.4);
+      }
+      .meta-strip .pill[data-state="playing"] {
+        color: #c5f2ff;
+        border-color: rgba(118, 212, 255, 0.38);
+      }
+      .meta-strip .pill[data-state="ended"] {
+        color: var(--danger);
+        border-color: rgba(255, 180, 162, 0.55);
+      }
       .menu {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         background: rgba(23, 18, 14, 0.9);
-        border: 1px solid rgba(255, 196, 128, 0.16);
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
         border-radius: 18px;
         padding: 26px;
-        min-width: 420px;
+        min-width: 460px;
         pointer-events: auto;
         backdrop-filter: blur(4px);
       }
       .menu h1 {
-        margin: 0 0 6px 0;
+        margin: 0 0 8px 0;
         font-size: 26px;
-        letter-spacing: 0.02em;
-        color: #f6d9a1;
+        letter-spacing: 0.06em;
+        color: var(--accent);
+        font-family: "Exo 2", "Space Grotesk", sans-serif;
       }
       .menu p {
         margin: 0 0 18px 0;
-        color: #c4b7a3;
+        color: var(--muted);
       }
       label {
         display: block;
@@ -73,10 +150,26 @@
         width: 100%;
         padding: 10px 12px;
         border-radius: 10px;
-        border: 1px solid rgba(255, 196, 128, 0.2);
-        background: rgba(26, 20, 16, 0.8);
+        border: 1px solid var(--border);
+        background: rgba(26, 20, 16, 0.9);
         color: #f1e3d3;
         font-size: 14px;
+      }
+      .map-meta {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(26, 20, 16, 0.7);
+        border: 1px dashed var(--border);
+        color: #d4c3a9;
+        font-size: 14px;
+      }
+      .map-meta .label {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 12px;
+        color: #b59d7a;
+        margin-bottom: 4px;
       }
       .actions {
         display: flex;
@@ -85,7 +178,7 @@
         flex-wrap: wrap;
       }
       button {
-        border: 1px solid rgba(255, 196, 128, 0.3);
+        border: 1px solid var(--border-strong);
         background: linear-gradient(145deg, #e3b464, #c98a3f);
         color: #1a120d;
         font-weight: 700;
@@ -102,23 +195,23 @@
       button:hover {
         transform: translateY(-1px);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-        filter: brightness(1.02);
+        filter: brightness(1.03);
       }
       .lobby-status {
         margin-top: 14px;
         padding: 10px 12px;
         border-radius: 10px;
         background: rgba(31, 24, 19, 0.8);
-        border: 1px solid rgba(255, 196, 128, 0.16);
+        border: 1px solid var(--border);
         color: #d4c3a9;
         font-size: 13px;
       }
       .lobby-status[data-state="ready"] {
-        color: #8ff2a9;
+        color: var(--success);
         border-color: rgba(143, 242, 169, 0.35);
       }
       .lobby-status[data-state="error"] {
-        color: #ffb4a2;
+        color: var(--danger);
         border-color: rgba(255, 160, 138, 0.35);
       }
       .hud {
@@ -133,7 +226,7 @@
         padding: 14px 16px;
         border-radius: 12px;
         background: linear-gradient(90deg, rgba(18, 14, 11, 0.78), rgba(22, 17, 14, 0.68));
-        border: 1px solid rgba(255, 196, 128, 0.14);
+        border: 1px solid var(--border);
         pointer-events: auto;
       }
       .hud .block {
@@ -150,7 +243,7 @@
       }
       .hud .value {
         font-size: 18px;
-        color: #f6d9a1;
+        color: var(--accent);
       }
       .hud .sub {
         font-size: 13px;
@@ -195,11 +288,11 @@
         left: 50%;
         transform: translate(-50%, -50%);
         background: rgba(18, 14, 11, 0.94);
-        border: 1px solid rgba(255, 196, 128, 0.2);
+        border: 1px solid var(--border);
         border-radius: 16px;
         padding: 18px 20px;
         min-width: 320px;
-        max-width: 520px;
+        max-width: 560px;
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
         pointer-events: auto;
         display: none;
@@ -210,12 +303,13 @@
       }
       .panel h2 {
         margin: 0 0 6px 0;
-        color: #f6d9a1;
+        color: var(--accent);
         font-size: 20px;
+        font-family: "Exo 2", "Space Grotesk", sans-serif;
       }
       .panel p {
         margin: 0 0 12px 0;
-        color: #c4b7a3;
+        color: var(--muted);
         font-size: 14px;
       }
       .panel .controls {
@@ -238,7 +332,7 @@
       }
       .panel .hotkeys {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 10px;
       }
       .panel .hotkeys .item {
@@ -261,15 +355,103 @@
         gap: 10px;
         margin-top: 12px;
       }
+      .match-outcome {
+        position: absolute;
+        top: 26%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(14, 11, 9, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 20px;
+        min-width: 360px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+        pointer-events: auto;
+        display: none;
+        z-index: 4;
+        text-align: center;
+      }
+      .match-outcome .badge {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--pill);
+        border: 1px solid var(--border);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+      .match-outcome[data-state="win"] .badge {
+        color: var(--success);
+        border-color: rgba(143, 242, 169, 0.55);
+      }
+      .match-outcome[data-state="lose"] .badge {
+        color: var(--danger);
+        border-color: rgba(255, 160, 138, 0.55);
+      }
+      .match-outcome .message {
+        font-size: 18px;
+        color: #f0e5d2;
+        margin-bottom: 12px;
+      }
+      .match-outcome .actions {
+        justify-content: center;
+      }
+      .inline-hints {
+        position: absolute;
+        right: 22px;
+        top: 110px;
+        width: 260px;
+        background: rgba(20, 15, 12, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        box-shadow: var(--shadow);
+        pointer-events: auto;
+        display: none;
+      }
+      .inline-hints[data-visible="true"] {
+        display: block;
+      }
+      .inline-hints .title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 6px;
+      }
+      .inline-hints ul {
+        margin: 0 0 8px 16px;
+        padding: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .inline-hints button {
+        width: 100%;
+      }
     </style>
   </head>
   <body>
     <div class="ui-layer">
+      <div class="meta-strip">
+        <div class="logo">Spice Frontier</div>
+        <div class="pill" id="session-indicator" data-state="menu">Меню</div>
+        <div class="pill hint">
+          <span>WASD / края — камера</span>
+          <span>ЛКМ — выбор</span>
+          <span>ПКМ — приказ</span>
+        </div>
+      </div>
       <div class="menu" id="menu-screen">
         <h1>Spice Frontier</h1>
-        <p>Прототип одиночной RTS в духе Dune. Создай игру и жми «Начать».</p>
+        <p>Прототип одиночной RTS в духе Dune. Создай игру, выбери карту и жми «Начать».</p>
         <label for="map-select">Карта</label>
         <select id="map-select" name="map"></select>
+        <div class="map-meta">
+          <div class="label">Детали карты</div>
+          <div class="value" id="map-details">—</div>
+        </div>
         <div class="actions">
           <button id="create-game" class="secondary">Создать игру</button>
           <button id="start-game">Начать</button>
@@ -302,6 +484,24 @@
           <button id="hud-open-controls" class="secondary">Управление</button>
           <button id="hud-open-settings" class="secondary">Настройки</button>
           <button id="back-to-menu">В меню</button>
+        </div>
+      </div>
+      <div class="inline-hints" id="inline-hints" data-visible="true">
+        <div class="title">Подсказки управления</div>
+        <ul>
+          <li>WASD или края экрана — панорамирование камеры.</li>
+          <li>Колесо мыши — зум. ПКМ — приказ перемещения/атаки.</li>
+          <li>Выбор: ЛКМ по объекту или рамка удержанием.</li>
+          <li>Рестарт и меню доступны снизу справа в HUD.</li>
+        </ul>
+        <button id="hide-hints" class="secondary">Скрыть подсказки</button>
+      </div>
+      <div class="match-outcome" id="match-outcome" hidden>
+        <div class="badge" id="outcome-label">Матч завершен</div>
+        <div class="message" id="outcome-message"></div>
+        <div class="actions">
+          <button id="outcome-restart">Снова в бой</button>
+          <button id="outcome-menu" class="secondary">В меню</button>
         </div>
       </div>
       <div class="selection-rect" id="selection-rect"></div>
